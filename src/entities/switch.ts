@@ -6,18 +6,18 @@ import { sleep } from "@/utils/timers";
 
 import type { DeviceEntity } from "./device";
 
-type BinarySensorPayload = {
+type SwitchPayload = {
   dev_id: string;
-  p: "binary_sensor";
+  p: "switch";
   id: string;
   stat: "ON" | "OFF";
 };
 
-function isBinarySensorPayload(payload: any): payload is BinarySensorPayload {
-  return "p" in payload && payload.p === "binary_sensor";
+function isSwitchPayload(payload: any): payload is SwitchPayload {
+  return "p" in payload && payload.p === "switch";
 }
 
-export class BinarySensorEntity {
+export class SwitchEntity {
   #discoveryPromise?: Promise<unknown>;
 
   constructor(
@@ -29,13 +29,30 @@ export class BinarySensorEntity {
         return;
       }
       const payload = packet.payload;
-      if (!isBinarySensorPayload(payload)) {
+      if (!isSwitchPayload(payload)) {
         return;
       }
 
       if (payload.id === id) {
         this.updateState(payload.stat === "ON" ? "ON" : "OFF");
       }
+    });
+
+    INTERFACES.mqtt.subscribe(this.commandTopic);
+    INTERFACES.mqtt.on("message", (topic, message) => {
+      if (topic !== this.commandTopic) {
+        return;
+      }
+
+      const state = message.toString() === "ON" ? "ON" : "OFF";
+      const json = {
+        id: this.id,
+        stat: state,
+      };
+      INTERFACES.serial.send("ESPNOW_TX", {
+        mac: this.device.mac,
+        payload: Buffer.from(JSON.stringify(json)),
+      });
     });
   }
 
@@ -47,11 +64,15 @@ export class BinarySensorEntity {
   }
 
   get discoveryTopic() {
-    return `${env.MQTT_HA_PREFIX}/binary_sensor/e2m_${snakeCase(this.device.id)}_${snakeCase(this.id)}/config`;
+    return `${env.MQTT_HA_PREFIX}/switch/e2m_${snakeCase(this.device.id)}_${snakeCase(this.id)}/config`;
   }
 
   get stateTopic() {
     return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.device.mac.replaceAll(":", "")}_${snakeCase(this.id)}/state`;
+  }
+
+  get commandTopic() {
+    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.device.mac.replaceAll(":", "")}_${snakeCase(this.id)}/set`;
   }
 
   discover() {
@@ -62,6 +83,7 @@ export class BinarySensorEntity {
           dev: this.device.DeviceInfoShort,
           ...this.EntityConfig,
           state_topic: this.stateTopic,
+          command_topic: this.commandTopic,
         }),
       )
       ?.then(() => sleep(1000))

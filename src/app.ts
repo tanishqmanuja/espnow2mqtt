@@ -1,6 +1,7 @@
 import { GatewayDevice } from "./devices/gateway";
 import { BinarySensorEntity } from "./entities/binary-sensor";
 import { DeviceEntity } from "./entities/device";
+import { SwitchEntity } from "./entities/switch";
 import { ESPNOW_BROADCAST_MAC } from "./helpers/espnow";
 import { getWizmoteButtonCode, getWizmotePayload } from "./helpers/wizmote";
 import { INTERFACES } from "./interfaces";
@@ -91,6 +92,12 @@ export class App {
         if (!device.entities.has(payload.id)) {
           if (payload.p === "binary_sensor") {
             const e = new BinarySensorEntity(payload.id, device);
+            device.entities.set(payload.id, e);
+            e.discover();
+          }
+
+          if (payload.p === "switch") {
+            const e = new SwitchEntity(payload.id, device);
             device.entities.set(payload.id, e);
             e.discover();
           }

@@ -3,12 +3,14 @@ import { env } from "@/env";
 import type { MqttInterface } from "@/interfaces/mqtt";
 import type { SerialInterface } from "@/interfaces/serial";
 import { debounce } from "@/utils/debouce";
+import { sleep } from "@/utils/timers";
 
 const UPDATE_INTERVAL_SEC = 60;
 
 export const GATEWAT_DEVICE_ID = "espnow2mqtt_gateway_device";
 
 export class GatewayDevice {
+  #discoveryPromise?: Promise<unknown>;
   private mac: string | undefined;
 
   constructor(
@@ -36,7 +38,7 @@ export class GatewayDevice {
     return new GatewayDevice(mqtt, serial);
   }
 
-  private _discover(mac?: string) {
+  private async _discover(mac?: string) {
     if (mac) this.mac = mac;
 
     const payload: Record<string, any> = {
@@ -44,7 +46,7 @@ export class GatewayDevice {
         ids: [GATEWAT_DEVICE_ID],
         name: "ESPNOW MQTT Gateway",
         mf: "tmlabs",
-        mdl: "ESPNow2MQTT",
+        mdl: "ESPNow Gateway",
         sw: APP_VERSION,
         hw: `${env.SERIAL_PORT} // Protocol v${APP_PROTOCOL_VERSION}`,
       },
@@ -68,14 +70,26 @@ export class GatewayDevice {
       payload.dev["cns"] = [["mac", this.mac]];
     }
 
-    this.mqtt.publish(
-      `${env.MQTT_HA_PREFIX}/binary_sensor/espnow2mqtt_serial/config`,
-      JSON.stringify(payload),
-    );
+    this.#discoveryPromise = this.mqtt
+      .publishAsync(
+        `${env.MQTT_HA_PREFIX}/binary_sensor/espnow2mqtt_serial/config`,
+        JSON.stringify(payload),
+      )
+      ?.then(() => sleep(1000))
+      .finally(() => (this.#discoveryPromise = undefined));
   }
   discover = debounce((mac?: string) => this._discover(mac), 1000);
 
   private _update(state: boolean = this.serial.isConnected) {
+    if (this.#discoveryPromise) {
+      this.#discoveryPromise.finally(() => {
+        this.mqtt.publish(
+          `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
+          JSON.stringify({ connected: state ? "ON" : "OFF" }),
+        );
+      });
+    }
+
     this.mqtt.publish(
       `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
       JSON.stringify({ connected: state ? "ON" : "OFF" }),

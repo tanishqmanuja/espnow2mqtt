@@ -1,4 +1,4 @@
-import { titleCase } from "scule";
+import { snakeCase, titleCase } from "scule";
 
 import { APP_VERSION } from "@/constants";
 import { GATEWAT_DEVICE_ID } from "@/devices/gateway";
@@ -19,6 +19,8 @@ export class DeviceEntity {
       ids: [this.id, this.mac],
       cns: [["mac", this.mac]],
       name: titleCase(this.id),
+      mf: "tmlabs",
+      mdl: "ESPNow Node",
       via_device: GATEWAT_DEVICE_ID,
     };
   }
@@ -38,14 +40,10 @@ export class DeviceEntity {
     };
   }
 
-  get rssiTopic() {
-    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.mac.replaceAll(":", "")}/rssi`;
-  }
-
   get RSSIEntityConfig() {
     return {
       unique_id: `e2m_${this.id}_rssi`,
-      state_topic: this.rssiTopic,
+      state_topic: this.rssiStateTopic,
       device_class: "signal_strength",
       unit_of_measurement: "dBm",
       entity_category: "diagnostic",
@@ -53,9 +51,16 @@ export class DeviceEntity {
     };
   }
 
+  get rssiDiscoveryTopic() {
+    return `${env.MQTT_HA_PREFIX}/sensor/e2m_${snakeCase(this.id)}_rssi/config`;
+  }
+  get rssiStateTopic() {
+    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.mac.replaceAll(":", "")}/rssi`;
+  }
+
   discoverRSSI() {
     return INTERFACES.mqtt.publishAsync(
-      `${env.MQTT_HA_PREFIX}/sensor/e2m_${this.id}_rssi/config`,
+      this.rssiDiscoveryTopic,
       JSON.stringify({
         dev: this.DeviceInfo,
         o: this.DeviceOrigin,
@@ -65,7 +70,7 @@ export class DeviceEntity {
   }
 
   private _updateRSSI(rssi: number) {
-    INTERFACES.mqtt.publish(this.rssiTopic, rssi.toString());
+    INTERFACES.mqtt.publish(this.rssiStateTopic, rssi.toString());
   }
   updateRSSI = debounce((rssi: number) => this._updateRSSI(rssi), 1000);
 }
