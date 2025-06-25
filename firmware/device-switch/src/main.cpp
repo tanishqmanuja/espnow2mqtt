@@ -11,7 +11,6 @@
 
 // ----- Configuration -----
 #define ESPNOW_WIFI_CHANNEL 6
-#define SERIAL_BAUD_RATE 9600
 #define MAX_PAYLOAD_SIZE 250
 #define BUTTON_PIN 0
 #define DEVICE_ID "switch-device"
@@ -81,17 +80,12 @@ void setup() {
   button.onPressed([](){ ledSwitch.setState(!ledSwitch.state()); });
   ledSwitch.onChange = [](bool st){ digitalWrite(LED_BUILTIN, !st); };
 
-  // bool allOk = true;
-  // registry.forEach([&](Entity& e) {
-  //   allOk = allOk && sendDiscovery(e);
-  // });
-
-  while(!sendDiscovery(flashBtn)){
-    continue;
-  };
-  while(!sendDiscovery(ledSwitch)){
-    continue;
-  }
+  registry.forEach([&](Entity& e) {
+    while(!sendDiscovery(e)){
+      delay(1000);
+    }
+    delay(100);
+  });
 }
 
 void loop() {
