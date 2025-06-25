@@ -1,0 +1,7 @@
+# Ignore Everything
+/*
+
+# Except
+!docs
+!src
+!.prettierrc
