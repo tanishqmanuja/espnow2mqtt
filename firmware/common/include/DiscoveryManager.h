@@ -1,4 +1,5 @@
 #pragma once
+
 #include "entities/Entity.h"
 
 struct DiscoReq {

@@ -4,47 +4,68 @@ import { INTERFACES } from "@/interfaces";
 import type { DecodedPacket } from "@/interfaces/protocols/serial/v1";
 import { sleep } from "@/utils/timers";
 
-import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
-import type { DeviceEntity } from "./device";
-import { PLATFORM } from "./platforms";
-import { getDiscoveryTopic, getEntityTopic } from "./utils";
+import { HA_DISCOVERY_COOLDOWN_MS } from "../constants";
+import type { DeviceEntity } from "../device";
+import { PLATFORM } from "../platforms";
+import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "../utils";
 
 const { mqtt, serial } = INTERFACES;
 
-type BinarySensorPayload = {
-  p: typeof PLATFORM.BINARY_SENSOR;
+type SwitchPayload = {
+  p: typeof PLATFORM.SWITCH;
   id: string;
   stat: "ON" | "OFF";
   dev_id: string;
 };
 
-function isBinarySensorPayload(payload: any): payload is BinarySensorPayload {
-  return "p" in payload && payload.p === PLATFORM.BINARY_SENSOR;
+function isSwitchPayload(payload: any): payload is SwitchPayload {
+  return "p" in payload && payload.p === PLATFORM.SWITCH;
 }
 
-export class BinarySensorEntity {
+export class SwitchEntity {
   #discoveryPromise?: Promise<unknown>;
 
   constructor(
     public readonly id: string,
     public readonly device: DeviceEntity,
-  ) {
-    // serial.on("packet", packet => this.processPacket(packet));
-  }
+  ) {}
 
+  processMessage(topic: string, message: Buffer) {
+    if (topic !== this.commandTopic) {
+      return;
+    }
+
+    const state = message.toString() === "ON" ? "ON" : "OFF";
+    const json = {
+      id: this.id,
+      stat: state,
+    };
+    serial.send("ESPNOW_TX", {
+      mac: this.device.mac,
+      payload: Buffer.from(JSON.stringify(json)),
+    });
+  }
   processPacket(packet: DecodedPacket) {
     if (packet.type !== "ESPNOW_RX") {
       return;
     }
 
     const payload = packet.payload;
-    if (!isBinarySensorPayload(payload)) {
+    if (!isSwitchPayload(payload)) {
       return;
     }
 
     if (payload.id === this.id) {
-      this.updateState(payload.stat);
+      this.updateState(payload.stat === "ON" ? "ON" : "OFF");
     }
+  }
+
+  get discoveryTopic() {
+    return getDiscoveryTopic({
+      platform: PLATFORM.SWITCH,
+      entityId: this.id,
+      deviceId: this.device.id,
+    });
   }
 
   get entityTopic() {
@@ -58,22 +79,19 @@ export class BinarySensorEntity {
     return {
       "~": this.entityTopic,
       name: titleCase(this.id),
-      uniq_id: `e2m_${this.device.id}_${this.id}_state`,
+      unique_id: getUniqueId(this.id, this.device.id),
       stat_t: "~/state",
+      cmd_t: "~/cmd",
       qos: 2,
     };
   }
 
-  get discoveryTopic() {
-    return getDiscoveryTopic({
-      platform: PLATFORM.BINARY_SENSOR,
-      entityId: this.id,
-      deviceId: this.device.id,
-    });
-  }
-
   get stateTopic() {
     return this.entityConfig.stat_t.replace("~", this.entityTopic);
+  }
+
+  get commandTopic() {
+    return this.entityConfig.cmd_t.replace("~", this.entityTopic);
   }
 
   discover() {

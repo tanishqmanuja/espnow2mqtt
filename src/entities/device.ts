@@ -6,8 +6,8 @@ import { env } from "@/env";
 import { INTERFACES } from "@/interfaces";
 import { debounce } from "@/utils/debouce";
 
-import type { BinarySensorEntity } from "./binary-sensor";
-import type { SwitchEntity } from "./switch";
+import type { BinarySensorEntity } from "./platforms/binary-sensor";
+import type { SwitchEntity } from "./platforms/switch";
 
 const { mqtt, serial } = INTERFACES;
 

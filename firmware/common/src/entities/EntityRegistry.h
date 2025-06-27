@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Entity.h"
 
 #define MAX_ENTITIES 10

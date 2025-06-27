@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include <ArduinoJson.h>
 #include "entities/Entity.h"
 

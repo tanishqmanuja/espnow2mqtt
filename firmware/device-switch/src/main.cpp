@@ -5,13 +5,13 @@
 #include <EasyButton.h>
 #include <ArduinoJson.h>
 
-#include "Config.h"
-#include "Helpers.h"
-#include "DiscoveryManager.h"
+#include <Config.h>
+#include <SendUtils.h>
+#include <DiscoveryManager.h>
+#include <entities/EntityRegistry.h>
+#include <entities/BinarySensor.h>
+#include <entities/Switch.h>
 
-#include "entities/EntityRegistry.h"
-#include "entities/BinarySensor.h"
-#include "entities/Switch.h"
 
 // ----- Configuration -----
 #define BUTTON_PIN 0

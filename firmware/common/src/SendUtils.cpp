@@ -1,7 +1,10 @@
 #include <QuickESPNow.h>
 
-#include "Config.h"
-#include "Helpers.h"
+#include <SendUtils.h>
+
+#ifndef GATEWAY_ADDRESS
+uint8_t GATEWAY_ADDRESS[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+#endif
 
 bool sendJson(const JsonDocument& doc) {
   String buffer;

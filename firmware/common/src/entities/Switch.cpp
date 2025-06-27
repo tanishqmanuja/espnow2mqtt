@@ -1,4 +1,4 @@
-#include "Switch.h"
+#include <entities/Switch.h>
 
 Switch::Switch(const char* id, const char* node_id)
   : _id(id), _node(node_id) {}

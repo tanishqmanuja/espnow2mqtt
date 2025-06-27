@@ -13,5 +13,8 @@
     "titleBar.inactiveForeground": "#15202b99"
   },
   "peacock.color": "#e5fc64",
-  "peacock.affectActivityBar": false
+  "peacock.affectActivityBar": false,
+  "files.associations": {
+    "functional": "cpp"
+  }
 }

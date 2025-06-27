@@ -1,5 +1,4 @@
 import { GatewayDevice } from "./devices/gateway";
-import { BinarySensorEntity } from "./entities/binary-sensor";
 import { DeviceEntity } from "./entities/device";
 import {
   devicemap,
@@ -7,7 +6,8 @@ import {
   pendingJobs,
   type EntityKey,
 } from "./entities/helpers";
-import { SwitchEntity } from "./entities/switch";
+import { BinarySensorEntity } from "./entities/platforms/binary-sensor";
+import { SwitchEntity } from "./entities/platforms/switch";
 import { extractFromTopic, normalisePrefix } from "./entities/utils";
 import { env } from "./env";
 import { ESPNOW_BROADCAST_MAC } from "./helpers/espnow";

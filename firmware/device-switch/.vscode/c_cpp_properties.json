@@ -10,6 +10,8 @@
             "includePath": [
                 "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/include",
                 "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/src",
+                "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/common/src",
+                "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/common/include",
                 "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/.pio/libdeps/nodemcuv2/QuickEspNow/src",
                 "C:/Users/tanishq/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src",
                 "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/.pio/libdeps/nodemcuv2/QuickDebug/src",
@@ -64,6 +66,8 @@
                 "path": [
                     "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/include",
                     "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/src",
+                    "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/common/src",
+                    "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/common/include",
                     "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/.pio/libdeps/nodemcuv2/QuickEspNow/src",
                     "C:/Users/tanishq/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src",
                     "C:/Users/tanishq/Projects/lab/espnow2mqtt/firmware/device-switch/.pio/libdeps/nodemcuv2/QuickDebug/src",

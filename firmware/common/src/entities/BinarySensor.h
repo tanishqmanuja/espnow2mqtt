@@ -1,6 +1,8 @@
 #pragma once
-#include "Entity.h"
+
 #include <functional>
+
+#include "Entity.h"
 
 class BinarySensor : public Entity {
 public:
@@ -8,7 +10,7 @@ public:
 
   BinarySensor(const char* id, const char* node_id);
 
-  const char* id()       const override { return _id; }
+  const char* id()       const override { return _id;       }
   const char* platform() const override { return "binary_sensor"; }
 
   void serializeDiscovery(JsonDocument& doc) const override;
@@ -23,7 +25,7 @@ public:
 
 private:
   const char* _id;
-  const char* _device_id;
+  const char* _node;
   bool _state  = false;
   bool _dirty  = true;
 };

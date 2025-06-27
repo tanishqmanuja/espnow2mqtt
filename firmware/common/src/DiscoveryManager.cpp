@@ -1,7 +1,8 @@
+
 #include <Arduino.h>
 
-#include "DiscoveryManager.h"
-#include "helpers.h"
+#include <DiscoveryManager.h>
+#include <SendUtils.h>
 
 #define DISCOVERY_QUEUE_SIZE 5
 
