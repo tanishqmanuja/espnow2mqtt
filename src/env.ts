@@ -2,6 +2,7 @@ import { prettifyError, z } from "zod/v4";
 
 const ENV_SCHEMA = z.object({
   NODE_ENV: z.enum(["development", "production"]).default("development"),
+
   // MQTT
   MQTT_HOST: z.string(),
   MQTT_PORT: z.coerce.number().min(1).max(65535).default(1883),
@@ -9,6 +10,7 @@ const ENV_SCHEMA = z.object({
   MQTT_PASSWORD: z.string(),
   MQTT_HA_PREFIX: z.string().default("homeassistant"),
   MQTT_ESPNOW2MQTT_PREFIX: z.string().default("espnow2mqtt"),
+
   // SERIAL
   SERIAL_PORT: z.string(),
   SERIAL_BAUD_RATE: z.coerce.number().default(9600),

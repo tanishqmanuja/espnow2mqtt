@@ -5,57 +5,54 @@
 #include <EasyButton.h>
 #include <ArduinoJson.h>
 
+#include "Config.h"
+#include "Helpers.h"
+#include "DiscoveryManager.h"
+
 #include "entities/EntityRegistry.h"
 #include "entities/BinarySensor.h"
 #include "entities/Switch.h"
 
 // ----- Configuration -----
-#define ESPNOW_WIFI_CHANNEL 6
-#define MAX_PAYLOAD_SIZE 250
 #define BUTTON_PIN 0
-#define DEVICE_ID "switch-device"
 
-u8 GATEWAY_ADDRESS[6] = {0x8c, 0xaa, 0xb5, 0x52, 0xcf, 0x7a};
+#define DEVICE_ID "switch-device"
+#define FLASH_BUTTON_ID "flash-button"
+#define LED_SWITCH_ID "led-switch"
+
 
 // ----- Globals -----
 EasyButton button(BUTTON_PIN);
 
 EntityRegistry registry;
-BinarySensor flashBtn("flash-button", DEVICE_ID);
-Switch ledSwitch("led-switch", DEVICE_ID);
-
-// ----- Helpers -----
-bool sendJson(const JsonDocument& doc) {
-  String buffer;
-  size_t len = serializeJson(doc, buffer);
-  return esp_now_send(GATEWAY_ADDRESS, (uint8_t *) buffer.c_str(), len) == 0;
-}
-
-bool sendDiscovery(Entity& e) {
-  JsonDocument doc;
-  e.serializeDiscovery(doc);
-  return sendJson(doc);
-}
-
-bool sendState(Entity& e) {
-  JsonDocument doc;
-  e.serializeState(doc);
-  return sendJson(doc);
-}
+BinarySensor flashBtn(FLASH_BUTTON_ID, DEVICE_ID);
+Switch ledSwitch(LED_SWITCH_ID, DEVICE_ID);
 
 // ----- Callbacks -----
-void onDataRcvd(uint8_t *macaddr, uint8_t *data, uint8_t len, signed int rssi, bool broadcast) {
-  JsonDocument doc;
-  deserializeJson(doc, data, len);
+static JsonDocument doc;
+void IRAM_ATTR onDataRcvd(uint8_t *macaddr, uint8_t *data, uint8_t len, signed int rssi, bool broadcast) {
+  DeserializationError err = deserializeJson(doc, data, len);
+  if (err) return; 
 
-  if(doc["id"] == "led-switch") {
-    ledSwitch.setState(doc["stat"] == "ON");
+  const char* typ = doc["typ"] | "";
+  const char* id  = doc["id"]  | "";
+
+  if(strcmp(typ, "dscvry") == 0){
+    registry.forEach([&](Entity& e){
+      if (strcmp(id, e.id()) == 0) {
+        discoEnqueue(&e);
+      }
+    });
+    return;
+  }
+
+  if (strcmp(id, ledSwitch.id()) == 0) {
+    const char* stat = doc["stat"] | "";
+    ledSwitch.setState(strcmp(stat, "ON") == 0);
   }
 }
 
-void onDataSend(uint8_t *macaddr, uint8_t status) {
-}
-
+void onDataSend(uint8_t *macaddr, uint8_t status) {}
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -66,6 +63,9 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(false);
 
+  registry.add(&flashBtn);
+  registry.add(&ledSwitch);
+
   if (!quickEspNow.begin(ESPNOW_WIFI_CHANNEL)) {
     delay(1000);
     ESP.restart();
@@ -74,17 +74,12 @@ void setup() {
   quickEspNow.onDataSent(onDataSend);
   quickEspNow.onDataRcvd(onDataRcvd);
 
-  registry.add(&flashBtn);
-  registry.add(&ledSwitch);
-  
   button.onPressed([](){ ledSwitch.setState(!ledSwitch.state()); });
   ledSwitch.onChange = [](bool st){ digitalWrite(LED_BUILTIN, !st); };
 
-  registry.forEach([&](Entity& e) {
-    while(!sendDiscovery(e)){
-      delay(1000);
-    }
-    delay(100);
+  discoveryInit();
+  registry.forEach([](Entity& e) {
+    discoEnqueue(&e); 
   });
 }
 
@@ -110,4 +105,6 @@ void loop() {
       ledSwitch.clearDirty();
     }
   }
+
+  discoveryTick();
 }

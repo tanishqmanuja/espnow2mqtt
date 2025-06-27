@@ -8,25 +8,22 @@ public:
 
   BinarySensor(const char* id, const char* node_id);
 
-  // ── Entity interface ───────────────────────────
-  const char* id()       const override { return _id;       }
+  const char* id()       const override { return _id; }
   const char* platform() const override { return "binary_sensor"; }
 
   void serializeDiscovery(JsonDocument& doc) const override;
   void serializeState    (JsonDocument& doc) const override;
 
-  // ── Logic ──────────────────────────────────────
-  void  setState(bool newState);   // call from sketch when HW changes
+  void  setState(bool newState);
   bool  state()       const { return _state; }
   bool  isDirty()     const { return _dirty; }
   void  clearDirty()        { _dirty = false; }
 
-  // user can attach a callback (e.g. drive an LED)
   ChangeCallback onChange = nullptr;
 
 private:
   const char* _id;
-  const char* _node;
+  const char* _device_id;
   bool _state  = false;
   bool _dirty  = true;
 };

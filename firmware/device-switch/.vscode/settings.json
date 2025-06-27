@@ -2,17 +2,17 @@
   "git.openRepositoryInParentFolders": "always",
   "workbench.colorCustomizations": {
     "commandCenter.border": "#15202b99",
-    "sash.hoverBorder": "#e3829e",
-    "statusBar.background": "#da587d",
+    "sash.hoverBorder": "#2adf9e",
+    "statusBar.background": "#1cba81",
     "statusBar.foreground": "#15202b",
-    "statusBarItem.hoverBackground": "#d12e5d",
-    "statusBarItem.remoteBackground": "#da587d",
+    "statusBarItem.hoverBackground": "#158e62",
+    "statusBarItem.remoteBackground": "#1cba81",
     "statusBarItem.remoteForeground": "#15202b",
-    "titleBar.activeBackground": "#da587d",
+    "titleBar.activeBackground": "#1cba81",
     "titleBar.activeForeground": "#15202b",
-    "titleBar.inactiveBackground": "#da587d99",
+    "titleBar.inactiveBackground": "#1cba8199",
     "titleBar.inactiveForeground": "#15202b99"
   },
-  "peacock.color": "#da587d",
+  "peacock.color": "#1cba81",
   "peacock.affectActivityBar": false
 }

@@ -1,73 +1,86 @@
 import { GatewayDevice } from "./devices/gateway";
 import { BinarySensorEntity } from "./entities/binary-sensor";
 import { DeviceEntity } from "./entities/device";
+import {
+  devicemap,
+  ensureEntityThen,
+  pendingJobs,
+  type EntityKey,
+} from "./entities/helpers";
 import { SwitchEntity } from "./entities/switch";
+import { extractFromTopic, normalisePrefix } from "./entities/utils";
+import { env } from "./env";
 import { ESPNOW_BROADCAST_MAC } from "./helpers/espnow";
 import { getWizmoteButtonCode, getWizmotePayload } from "./helpers/wizmote";
 import { INTERFACES } from "./interfaces";
 
+const { mqtt, serial } = INTERFACES;
+
 const ESPNOW_WIZMOTE_TOPIC = "espnow/wizmote/send";
 
 export class App {
-  private serial = INTERFACES.serial;
-  private mqtt = INTERFACES.mqtt;
-
   private setupMqttHandlers() {
-    this.mqtt.on("connected", () => {
+    mqtt.on("connected", () => {
       console.log("[MQTT] Connected");
-      this.mqtt.subscribe(ESPNOW_WIZMOTE_TOPIC);
+      mqtt.subscribe(ESPNOW_WIZMOTE_TOPIC);
     });
 
-    this.mqtt.on("disconnected", () => {
+    mqtt.on("disconnected", () => {
       console.log("[MQTT] Disconnected");
     });
 
-    this.mqtt.on("error", e => console.error("[MQTT]", e));
+    mqtt.on("error", e => console.error("[MQTT]", e));
 
-    this.mqtt.on("message", (topic, message) => {
+    mqtt.on("message", (topic, message) => {
       const msg = message.toString();
-      console.log("[MQTT] -> Serial", topic, msg);
-
-      if (topic === ESPNOW_WIZMOTE_TOPIC) {
-        const btnCode = getWizmoteButtonCode(msg);
-        if (btnCode) {
-          this.serial.send("ESPNOW_TX", {
-            mac: ESPNOW_BROADCAST_MAC,
-            payload: getWizmotePayload(btnCode),
-          });
-        }
-      }
+      console.log("[MQTT] MSG", topic, msg);
     });
   }
 
   private setupSerialHandlers() {
-    this.serial.on("connected", () => {
+    serial.on("connected", () => {
       console.log("[Serial] Connected");
     });
-    this.serial.on("disconnected", () => {
+    serial.on("disconnected", () => {
       console.log("[Serial] Disconnected");
     });
 
-    this.serial.on("error", e => {
+    serial.on("error", e => {
       const FILTERED = ["File not found"];
       if (FILTERED.some(f => e.message.includes(f))) return;
 
       console.error("[Serial]", e);
     });
 
-    // this.serial.on("data", buf => {
-    //   console.log("[Serial] -> RAW", buf.toString("hex"));
-    // });
+    serial.on("write", packet => {
+      console.log("[Serial] SND", packet.type, packet.data);
+    });
 
-    this.serial.on("packet", packet => {
-      console.log("[Serial] -> MQTT", packet.type, packet);
+    serial.on("packet", packet => {
+      console.log("[Serial] PKT", packet.type, packet);
     });
   }
 
   private setupDeviceHandlers() {
-    const devicemap = new Map<string, DeviceEntity>();
+    const espnow2mqttPrefix = normalisePrefix(env.MQTT_ESPNOW2MQTT_PREFIX);
+    mqtt.subscribe(`${espnow2mqttPrefix}/+/+/+`);
+    mqtt.on("message", (topic, message) => {
+      const parsed = extractFromTopic(topic);
 
-    this.serial.on("packet", packet => {
+      if (!parsed) {
+        return;
+      }
+
+      const { entityId, device } = parsed;
+      ensureEntityThen(device.id, entityId, device.mac, () => {
+        const entity = devicemap.get(device.id)!.entities.get(entityId)!;
+        if ("processMessage" in entity) {
+          entity.processMessage(topic, message);
+        }
+      });
+    });
+
+    serial.on("packet", packet => {
       if (packet.type !== "ESPNOW_RX") {
         return;
       }
@@ -81,37 +94,80 @@ export class App {
           id: string;
         };
         const payload = packet.payload as DiscoveryPayload;
+
+        // DEVICE BOOTSTRAP
         if (!devicemap.has(payload.dev_id)) {
           const d = new DeviceEntity(payload.dev_id, packet.mac);
           devicemap.set(payload.dev_id, d);
-          d.discoverRSSI()?.then(() => d.updateRSSI(packet.rssi));
         }
 
-        // SETUP ENTITIES
         const device = devicemap.get(payload.dev_id)!;
+        device.discoverRSSI()?.then(() => device.updateRSSI(packet.rssi));
+
+        // ENTITY BOOTSTRAP
         if (!device.entities.has(payload.id)) {
           if (payload.p === "binary_sensor") {
             const e = new BinarySensorEntity(payload.id, device);
             device.entities.set(payload.id, e);
-            e.discover();
           }
 
           if (payload.p === "switch") {
             const e = new SwitchEntity(payload.id, device);
             device.entities.set(payload.id, e);
-            e.discover();
           }
         }
+        const entity = device.entities.get(payload.id)!;
+        entity.discover();
+
+        const key: EntityKey = `${payload.dev_id}/${payload.id}`;
+        if (pendingJobs.has(key)) {
+          pendingJobs
+            .get(key)!
+            .splice(0)
+            .forEach(job => job());
+          pendingJobs.delete(key);
+        }
+        return;
       }
 
-      if ("dev_id" in packet.payload) {
+      if ("dev_id" in packet.payload && "id" in packet.payload) {
         type DevicePayload = {
           dev_id: string;
+          id: string;
         };
-        const p = packet.payload as DevicePayload;
-        if (devicemap.has(p.dev_id)) {
-          const d = devicemap.get(p.dev_id)!;
+        const dp = packet.payload as DevicePayload;
+        if (devicemap.has(dp.dev_id)) {
+          const d = devicemap.get(dp.dev_id)!;
           d.updateRSSI(packet.rssi);
+        } else {
+          const d = new DeviceEntity(dp.dev_id, packet.mac);
+          d.updateRSSI(packet.rssi);
+          devicemap.set(dp.dev_id, d);
+        }
+
+        ensureEntityThen(dp.dev_id, dp.id, packet.mac, () => {
+          const device = devicemap.get(dp.dev_id)!;
+          const entity = device.entities.get(dp.id)!;
+          entity.processPacket(packet);
+          device.updateRSSI(packet.rssi);
+        });
+
+        return;
+      }
+    });
+  }
+
+  private setupWizmoteHandlers() {
+    mqtt.subscribe(ESPNOW_WIZMOTE_TOPIC);
+    mqtt.on("message", (topic, message) => {
+      const msg = message.toString();
+      if (topic === ESPNOW_WIZMOTE_TOPIC) {
+        const btnCode = getWizmoteButtonCode(msg);
+        if (btnCode) {
+          serial.send("ESPNOW_TX", {
+            mac: ESPNOW_BROADCAST_MAC,
+            payload: getWizmotePayload(btnCode),
+          });
         }
       }
     });
@@ -120,8 +176,9 @@ export class App {
   async start() {
     this.setupMqttHandlers();
     this.setupSerialHandlers();
+    GatewayDevice.init();
+    await INTERFACES.init();
     this.setupDeviceHandlers();
-    GatewayDevice.init(this.mqtt, this.serial);
-    await Promise.all([this.mqtt.init(), this.serial.init()]);
+    this.setupWizmoteHandlers();
   }
 }

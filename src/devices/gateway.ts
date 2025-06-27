@@ -1,7 +1,6 @@
 import { APP_PROTOCOL_VERSION, APP_VERSION } from "@/constants";
 import { env } from "@/env";
-import type { MqttInterface } from "@/interfaces/mqtt";
-import type { SerialInterface } from "@/interfaces/serial";
+import { INTERFACES } from "@/interfaces";
 import { debounce } from "@/utils/debouce";
 import { sleep } from "@/utils/timers";
 
@@ -9,22 +8,21 @@ const UPDATE_INTERVAL_SEC = 60;
 
 export const GATEWAT_DEVICE_ID = "espnow2mqtt_gateway_device";
 
+const { mqtt, serial } = INTERFACES;
+
 export class GatewayDevice {
   #discoveryPromise?: Promise<unknown>;
   private mac: string | undefined;
 
-  constructor(
-    private mqtt: MqttInterface,
-    private serial: SerialInterface,
-  ) {
-    this.mqtt.on("connected", () => {
+  constructor() {
+    mqtt.on("connected", () => {
       this.discover();
       this.update();
     });
 
-    this.serial.on("connected", () => this.update());
-    this.serial.on("disconnected", () => this.update());
-    this.serial.on("packet", p => {
+    serial.on("connected", () => this.update());
+    serial.on("disconnected", () => this.update());
+    serial.on("packet", p => {
       if (p.type === "GATEWAY_INIT") {
         this.discover(p.mac);
         this.update();
@@ -34,8 +32,8 @@ export class GatewayDevice {
     setInterval(() => this.update(), UPDATE_INTERVAL_SEC * 1000);
   }
 
-  static init(mqtt: MqttInterface, serial: SerialInterface) {
-    return new GatewayDevice(mqtt, serial);
+  static init() {
+    return new GatewayDevice();
   }
 
   private async _discover(mac?: string) {
@@ -70,7 +68,7 @@ export class GatewayDevice {
       payload.dev["cns"] = [["mac", this.mac]];
     }
 
-    this.#discoveryPromise = this.mqtt
+    this.#discoveryPromise = mqtt
       .publishAsync(
         `${env.MQTT_HA_PREFIX}/binary_sensor/espnow2mqtt_serial/config`,
         JSON.stringify(payload),
@@ -80,17 +78,14 @@ export class GatewayDevice {
   }
   discover = debounce((mac?: string) => this._discover(mac), 1000);
 
-  private _update(state: boolean = this.serial.isConnected) {
+  private _update(state: boolean = serial.isConnected) {
     if (this.#discoveryPromise) {
       this.#discoveryPromise.finally(() => {
-        this.mqtt.publish(
-          `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
-          JSON.stringify({ connected: state ? "ON" : "OFF" }),
-        );
+        this._update(state);
       });
     }
 
-    this.mqtt.publish(
+    mqtt.publish(
       `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
       JSON.stringify({ connected: state ? "ON" : "OFF" }),
     );

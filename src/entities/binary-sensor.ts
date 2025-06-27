@@ -1,20 +1,25 @@
-import { snakeCase } from "scule";
+import { titleCase } from "scule";
 
-import { env } from "@/env";
 import { INTERFACES } from "@/interfaces";
+import type { DecodedPacket } from "@/interfaces/protocols/serial/v1";
 import { sleep } from "@/utils/timers";
 
+import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
 import type { DeviceEntity } from "./device";
+import { PLATFORM } from "./platforms";
+import { getDiscoveryTopic, getEntityTopic } from "./utils";
+
+const { mqtt, serial } = INTERFACES;
 
 type BinarySensorPayload = {
-  dev_id: string;
-  p: "binary_sensor";
+  p: typeof PLATFORM.BINARY_SENSOR;
   id: string;
   stat: "ON" | "OFF";
+  dev_id: string;
 };
 
 function isBinarySensorPayload(payload: any): payload is BinarySensorPayload {
-  return "p" in payload && payload.p === "binary_sensor";
+  return "p" in payload && payload.p === PLATFORM.BINARY_SENSOR;
 }
 
 export class BinarySensorEntity {
@@ -24,47 +29,63 @@ export class BinarySensorEntity {
     public readonly id: string,
     public readonly device: DeviceEntity,
   ) {
-    INTERFACES.serial.on("packet", packet => {
-      if (packet.type !== "ESPNOW_RX") {
-        return;
-      }
-      const payload = packet.payload;
-      if (!isBinarySensorPayload(payload)) {
-        return;
-      }
+    // serial.on("packet", packet => this.processPacket(packet));
+  }
 
-      if (payload.id === id) {
-        this.updateState(payload.stat === "ON" ? "ON" : "OFF");
-      }
+  processPacket(packet: DecodedPacket) {
+    if (packet.type !== "ESPNOW_RX") {
+      return;
+    }
+
+    const payload = packet.payload;
+    if (!isBinarySensorPayload(payload)) {
+      return;
+    }
+
+    if (payload.id === this.id) {
+      this.updateState(payload.stat);
+    }
+  }
+
+  get entityTopic() {
+    return getEntityTopic({
+      entityId: this.id,
+      device: this.device,
     });
   }
 
-  get EntityConfig() {
+  get entityConfig() {
     return {
-      unique_id: `e2m_${this.device.id}_${this.id}_state`,
+      "~": this.entityTopic,
+      name: titleCase(this.id),
+      uniq_id: `e2m_${this.device.id}_${this.id}_state`,
+      stat_t: "~/state",
       qos: 2,
     };
   }
 
   get discoveryTopic() {
-    return `${env.MQTT_HA_PREFIX}/binary_sensor/e2m_${snakeCase(this.device.id)}_${snakeCase(this.id)}/config`;
+    return getDiscoveryTopic({
+      platform: PLATFORM.BINARY_SENSOR,
+      entityId: this.id,
+      deviceId: this.device.id,
+    });
   }
 
   get stateTopic() {
-    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.device.mac.replaceAll(":", "")}_${snakeCase(this.id)}/state`;
+    return this.entityConfig.stat_t.replace("~", this.entityTopic);
   }
 
   discover() {
-    this.#discoveryPromise = INTERFACES.mqtt
+    this.#discoveryPromise = mqtt
       .publishAsync(
         this.discoveryTopic,
         JSON.stringify({
           dev: this.device.DeviceInfoShort,
-          ...this.EntityConfig,
-          state_topic: this.stateTopic,
+          ...this.entityConfig,
         }),
       )
-      ?.then(() => sleep(1000))
+      ?.then(() => sleep(HA_DISCOVERY_COOLDOWN_MS))
       .then(() => (this.#discoveryPromise = undefined));
   }
 
@@ -72,7 +93,7 @@ export class BinarySensorEntity {
     if (this.#discoveryPromise) {
       this.#discoveryPromise.finally(() => this.updateState(state));
     } else {
-      INTERFACES.mqtt.publish(this.stateTopic, state);
+      mqtt.publish(this.stateTopic, state);
     }
   }
 }

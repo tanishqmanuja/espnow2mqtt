@@ -1,0 +1,1 @@
+export const HA_DISCOVERY_COOLDOWN_MS = 1000;

@@ -1,20 +1,25 @@
-import { snakeCase } from "scule";
+import { titleCase } from "scule";
 
-import { env } from "@/env";
 import { INTERFACES } from "@/interfaces";
+import type { DecodedPacket } from "@/interfaces/protocols/serial/v1";
 import { sleep } from "@/utils/timers";
 
+import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
 import type { DeviceEntity } from "./device";
+import { PLATFORM } from "./platforms";
+import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
+
+const { mqtt, serial } = INTERFACES;
 
 type SwitchPayload = {
-  dev_id: string;
-  p: "switch";
+  p: typeof PLATFORM.SWITCH;
   id: string;
   stat: "ON" | "OFF";
+  dev_id: string;
 };
 
 function isSwitchPayload(payload: any): payload is SwitchPayload {
-  return "p" in payload && payload.p === "switch";
+  return "p" in payload && payload.p === PLATFORM.SWITCH;
 }
 
 export class SwitchEntity {
@@ -24,69 +29,85 @@ export class SwitchEntity {
     public readonly id: string,
     public readonly device: DeviceEntity,
   ) {
-    INTERFACES.serial.on("packet", packet => {
-      if (packet.type !== "ESPNOW_RX") {
-        return;
-      }
-      const payload = packet.payload;
-      if (!isSwitchPayload(payload)) {
-        return;
-      }
+    // mqtt.subscribe(this.commandTopic);
+    // mqtt.on("message", (topic, message) => this.processMessage(topic, message));
+    // serial.on("packet", packet => this.processPacket(packet));
+  }
 
-      if (payload.id === id) {
-        this.updateState(payload.stat === "ON" ? "ON" : "OFF");
-      }
+  processMessage(topic: string, message: Buffer) {
+    if (topic !== this.commandTopic) {
+      return;
+    }
+
+    const state = message.toString() === "ON" ? "ON" : "OFF";
+    const json = {
+      id: this.id,
+      stat: state,
+    };
+    serial.send("ESPNOW_TX", {
+      mac: this.device.mac,
+      payload: Buffer.from(JSON.stringify(json)),
     });
+  }
+  processPacket(packet: DecodedPacket) {
+    if (packet.type !== "ESPNOW_RX") {
+      return;
+    }
 
-    INTERFACES.mqtt.subscribe(this.commandTopic);
-    INTERFACES.mqtt.on("message", (topic, message) => {
-      if (topic !== this.commandTopic) {
-        return;
-      }
+    const payload = packet.payload;
+    if (!isSwitchPayload(payload)) {
+      return;
+    }
 
-      const state = message.toString() === "ON" ? "ON" : "OFF";
-      const json = {
-        id: this.id,
-        stat: state,
-      };
-      INTERFACES.serial.send("ESPNOW_TX", {
-        mac: this.device.mac,
-        payload: Buffer.from(JSON.stringify(json)),
-      });
+    if (payload.id === this.id) {
+      this.updateState(payload.stat === "ON" ? "ON" : "OFF");
+    }
+  }
+
+  get discoveryTopic() {
+    return getDiscoveryTopic({
+      platform: PLATFORM.SWITCH,
+      entityId: this.id,
+      deviceId: this.device.id,
     });
   }
 
-  get EntityConfig() {
+  get entityTopic() {
+    return getEntityTopic({
+      entityId: this.id,
+      device: this.device,
+    });
+  }
+
+  get entityConfig() {
     return {
-      unique_id: `e2m_${this.device.id}_${this.id}_state`,
+      "~": this.entityTopic,
+      name: titleCase(this.id),
+      unique_id: getUniqueId(this.id, this.device.id),
+      stat_t: "~/state",
+      cmd_t: "~/cmd",
       qos: 2,
     };
   }
 
-  get discoveryTopic() {
-    return `${env.MQTT_HA_PREFIX}/switch/e2m_${snakeCase(this.device.id)}_${snakeCase(this.id)}/config`;
-  }
-
   get stateTopic() {
-    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.device.mac.replaceAll(":", "")}_${snakeCase(this.id)}/state`;
+    return this.entityConfig.stat_t.replace("~", this.entityTopic);
   }
 
   get commandTopic() {
-    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.device.mac.replaceAll(":", "")}_${snakeCase(this.id)}/set`;
+    return this.entityConfig.cmd_t.replace("~", this.entityTopic);
   }
 
   discover() {
-    this.#discoveryPromise = INTERFACES.mqtt
+    this.#discoveryPromise = mqtt
       .publishAsync(
         this.discoveryTopic,
         JSON.stringify({
           dev: this.device.DeviceInfoShort,
-          ...this.EntityConfig,
-          state_topic: this.stateTopic,
-          command_topic: this.commandTopic,
+          ...this.entityConfig,
         }),
       )
-      ?.then(() => sleep(1000))
+      ?.then(() => sleep(HA_DISCOVERY_COOLDOWN_MS))
       .then(() => (this.#discoveryPromise = undefined));
   }
 
@@ -94,7 +115,7 @@ export class SwitchEntity {
     if (this.#discoveryPromise) {
       this.#discoveryPromise.finally(() => this.updateState(state));
     } else {
-      INTERFACES.mqtt.publish(this.stateTopic, state);
+      mqtt.publish(this.stateTopic, state);
     }
   }
 }

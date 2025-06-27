@@ -20,13 +20,9 @@ public:
     for (uint8_t i = 0; i < count; ++i) {
         fn(*entities[i]);
     }
-}
-
-  void updateAll() {
-    for (int i = 0; i < count; ++i) {
-      entities[i]->update();
-    }
   }
+
+  uint8_t size() const { return count; }
 
 private:
   Entity* entities[MAX_ENTITIES];

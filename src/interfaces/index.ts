@@ -1,7 +1,24 @@
 import { MqttInterface } from "./mqtt";
 import { SerialInterface } from "./serial";
 
-const mqtt = new MqttInterface();
-const serial = new SerialInterface();
+export class Interfaces {
+  #mqtt = new MqttInterface();
+  #serial = new SerialInterface();
 
-export const INTERFACES = Object.freeze({ mqtt, serial });
+  constructor() {}
+
+  get mqtt() {
+    return this.#mqtt;
+  }
+
+  get serial() {
+    return this.#serial;
+  }
+
+  async init() {
+    await Promise.all([this.mqtt.init(), this.serial.init()]);
+  }
+}
+
+/* Global Singleton */
+export const INTERFACES = new Interfaces();

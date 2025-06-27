@@ -21,6 +21,10 @@ interface SerialInterfaceEventMap {
   data: [data: Buffer];
   error: [err: Error];
 
+  write: [
+    packet: { type: HandledPacketType; data: PacketData<HandledPacketType> },
+  ];
+
   packet: [packet: DecodedPacket];
 }
 
@@ -104,16 +108,24 @@ export class SerialInterface extends EventEmitter<SerialInterfaceEventMap> {
     }
   }
 
-  private write(data: Buffer) {
+  private write(data: Buffer): boolean {
     if (this.isReady && this.port) {
       this.port.write(data);
+      return true;
     } else {
       console.warn("[SERIAL] Dropping message");
+      return false;
     }
   }
 
   send<T extends HandledPacketType>(type: T, data: PacketData<T>): void {
     const packet = PacketEncoder.encode(type, data);
-    this.write(packet);
+    const success = this.write(packet);
+    if (success) {
+      this.emit("write", {
+        type,
+        data,
+      });
+    }
   }
 }

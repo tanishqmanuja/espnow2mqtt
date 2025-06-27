@@ -6,8 +6,13 @@ import { env } from "@/env";
 import { INTERFACES } from "@/interfaces";
 import { debounce } from "@/utils/debouce";
 
+import type { BinarySensorEntity } from "./binary-sensor";
+import type { SwitchEntity } from "./switch";
+
+const { mqtt, serial } = INTERFACES;
+
 export class DeviceEntity {
-  readonly entities = new Map<string, any>();
+  readonly entities = new Map<string, BinarySensorEntity | SwitchEntity>();
 
   constructor(
     public readonly id: string,
@@ -59,7 +64,7 @@ export class DeviceEntity {
   }
 
   discoverRSSI() {
-    return INTERFACES.mqtt.publishAsync(
+    return mqtt.publishAsync(
       this.rssiDiscoveryTopic,
       JSON.stringify({
         dev: this.DeviceInfo,
@@ -70,7 +75,15 @@ export class DeviceEntity {
   }
 
   private _updateRSSI(rssi: number) {
-    INTERFACES.mqtt.publish(this.rssiStateTopic, rssi.toString());
+    mqtt.publish(this.rssiStateTopic, rssi.toString());
   }
   updateRSSI = debounce((rssi: number) => this._updateRSSI(rssi), 1000);
+
+  requestDiscovery(entityId: string) {
+    const payloadStr = JSON.stringify({ typ: "dscvry", id: entityId });
+    serial.send("ESPNOW_TX", {
+      mac: this.mac,
+      payload: Buffer.from(payloadStr),
+    });
+  }
 }
