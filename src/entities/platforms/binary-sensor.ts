@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { DecodedPacket } from "@/interfaces/protocols/serial";
 
 import { EntityBase } from "../base";
+import type { Device } from "../device";
 import { PLATFORM } from "../platforms";
 
 const BinarySensorPayloadSchema = z.object({
@@ -16,7 +17,12 @@ type BinarySensorPayload = z.infer<typeof BinarySensorPayloadSchema>;
 export type BinarySensorState = "ON" | "OFF";
 
 export class BinarySensorEntity extends EntityBase<BinarySensorState> {
-  protected platform = PLATFORM.BINARY_SENSOR;
+  readonly platform = PLATFORM.BINARY_SENSOR;
+
+  constructor(id: string, device: Device) {
+    super(id, device);
+    this.logger.debug("Created", this.platform, id, device.id);
+  }
 
   processPacket(packet: DecodedPacket): void {
     if (packet.type !== "ESPNOW_RX") return;

@@ -80,9 +80,17 @@ void setup() {
   });
 }
 
+bool initialDiscoveryFinished = false;
 void loop() {
   button.read();
   blinker.update();
+
+  if (!initialDiscoveryFinished) {
+    initialDiscoveryFinished = discoveryTick();
+    return;
+  } else {
+    discoveryTick();
+  }
 
   if(button.pressedFor(5)){
     flashBtn.setState(true);
@@ -97,6 +105,4 @@ void loop() {
       flashBtn.clearDirty();
     }
   }
-
-  discoveryTick();
 }

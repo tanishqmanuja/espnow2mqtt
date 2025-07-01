@@ -10,4 +10,4 @@ struct DiscoReq {
 void discoveryInit();
 void discoEnqueue(Entity* e);
 bool discoDequeue(DiscoReq& out);
-void discoveryTick();
+bool discoveryTick();

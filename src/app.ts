@@ -136,11 +136,13 @@ export class App {
 
     // bootstrap entity
     let entity = device.entities.get(p.id);
-    if (!entity && isSupportedPlatform(p.p)) {
-      entity = createEntity(p.p, p.id, device);
-      device.entities.set(p.id, entity);
-    } else {
-      logger.warn("Unsupported platform", p.p);
+    if (!entity) {
+      if (isSupportedPlatform(p.p)) {
+        entity = createEntity(p.p, p.id, device);
+        device.entities.set(p.id, entity);
+      } else {
+        logger.warn("Unsupported platform", p.p);
+      }
     }
 
     if (!entity) return;

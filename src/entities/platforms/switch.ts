@@ -5,6 +5,7 @@ import type { DecodedPacket } from "@/interfaces/protocols/serial";
 
 import { EntityBase } from "../base";
 import type { CommandProcessor, PacketProcessor } from "../capabilities";
+import type { Device } from "../device";
 import { PLATFORM } from "../platforms";
 
 const { serial } = getInterfaces();
@@ -23,7 +24,12 @@ export class SwitchEntity
   extends EntityBase<SwitchState>
   implements PacketProcessor, CommandProcessor
 {
-  protected platform = PLATFORM.SWITCH;
+  readonly platform = PLATFORM.SWITCH;
+
+  constructor(id: string, device: Device) {
+    super(id, device);
+    this.logger.debug("Created", this.platform, id, device.id);
+  }
 
   processMessage(topic: string, payload: Buffer): void {
     if (topic !== this.commandTopic) return;

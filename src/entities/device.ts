@@ -3,6 +3,7 @@ import { titleCase } from "scule";
 import { APP_VERSION } from "@/constants";
 import { GATEWAY_DEVICE_ID } from "@/devices/gateway";
 import { getInterfaces } from "@/interfaces";
+import { rgb } from "@/utils/colors";
 import { debounce } from "@/utils/debounce";
 import { createLogger } from "@/utils/logger";
 
@@ -10,7 +11,7 @@ import type { Entity } from "./base";
 import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 
 const { mqtt, serial } = getInterfaces();
-const log = createLogger("DEVICE");
+const log = createLogger("DEVICE", rgb(174, 198, 207));
 
 export class Device {
   readonly entities = new Map<string, Entity>();
@@ -18,7 +19,9 @@ export class Device {
   constructor(
     public readonly id: string,
     public readonly mac: string,
-  ) {}
+  ) {
+    log.debug("Created", id, mac);
+  }
 
   private buildDiscoveryTopic(): string {
     return getDiscoveryTopic({
@@ -67,7 +70,7 @@ export class Device {
     return Object.freeze({
       name: "espnow2mqtt",
       sw: APP_VERSION,
-      url: "https://espnow2mqtt.example.com/support",
+      url: "https://github.com/tanishqmanuja/espnow2mqtt",
     });
   }
 
@@ -83,7 +86,6 @@ export class Device {
         this.buildDiscoveryTopic(),
         JSON.stringify(payload),
       );
-      log.debug("Published RSSI discovery for", this.id);
     } catch (err) {
       log.warn("Failed to publish RSSI discovery:", err);
     }

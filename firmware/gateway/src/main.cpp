@@ -39,6 +39,9 @@ void setup() {
   blinker.setup(); 
   
   /* Setup ESP Now */
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(false);
+
   quickEspNow.begin(ESPNOW_WIFI_CHANNEL);
   quickEspNow.onDataSent(onDataSend);
   quickEspNow.onDataRcvd(onDataRcvd);

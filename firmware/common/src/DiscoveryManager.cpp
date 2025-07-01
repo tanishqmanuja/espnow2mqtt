@@ -29,7 +29,7 @@ bool discoDequeue(DiscoReq& out) {
   return true;
 }
 
-void discoveryTick() {
+bool discoveryTick() {
   DiscoReq req;
   if (discoDequeue(req)) {
     if (!sendDiscovery(*req.ent)) {
@@ -38,5 +38,7 @@ void discoveryTick() {
         discoEnqueue(req.ent);
       }
     }
+    return false;
   }
+  return true;
 }

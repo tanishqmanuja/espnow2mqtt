@@ -59,18 +59,14 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
 
   button.begin();
+  
+  registry.add(&flashBtn);
+  registry.add(&ledSwitch);
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(false);
 
-  registry.add(&flashBtn);
-  registry.add(&ledSwitch);
-
-  if (!quickEspNow.begin(ESPNOW_WIFI_CHANNEL)) {
-    delay(1000);
-    ESP.restart();
-  }
-
+  quickEspNow.begin(ESPNOW_WIFI_CHANNEL);
   quickEspNow.onDataSent(onDataSend);
   quickEspNow.onDataRcvd(onDataRcvd);
 
@@ -78,30 +74,39 @@ void setup() {
   ledSwitch.onChange = [](bool st){ digitalWrite(LED_BUILTIN, !st); };
 
   discoveryInit();
+  registry.forEach([](Entity& e) {
+    discoEnqueue(&e); 
+  });
 }
 
+bool initialDiscoveryFinished = false;
 void loop() {
   button.read();
 
-  if(button.pressedFor(5)){
+  if (!initialDiscoveryFinished) {
+    initialDiscoveryFinished = discoveryTick();
+    return;
+  } else {
+    discoveryTick();
+  }
+  
+  if(!flashBtn.state() && button.pressedFor(5)){
     flashBtn.setState(true);
   }
-
-  if(button.releasedFor(10)){
+  
+  if(flashBtn.state() && button.releasedFor(10)){
     flashBtn.setState(false);
   }
-
+  
   if (flashBtn.isDirty()) {
     if(sendState(flashBtn)){
       flashBtn.clearDirty();
     }
   }
-
+  
   if(ledSwitch.isDirty()){
     if(sendState(ledSwitch)){
       ledSwitch.clearDirty();
     }
   }
-
-  discoveryTick();
 }

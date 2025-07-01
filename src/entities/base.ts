@@ -1,6 +1,8 @@
 import { titleCase } from "scule";
 
 import { getInterfaces } from "@/interfaces";
+import { rgb } from "@/utils/colors";
+import { createLogger } from "@/utils/logger";
 import { sleep } from "@/utils/timers";
 
 import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
@@ -9,6 +11,8 @@ import { COMMAND_CAPABLE_PLATFORMS } from "./platforms";
 import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 
 const { mqtt } = getInterfaces();
+
+const logger = createLogger("ENTITY", rgb(119, 221, 119));
 
 export type Entity = EntityBase<any>;
 
@@ -19,10 +23,12 @@ export type Entity = EntityBase<any>;
  * implement processPacket or processMessage via interfaces.
  */
 export abstract class EntityBase<TState extends string> {
-  protected abstract platform: string;
+  abstract readonly platform: string;
 
   protected discoveryInFlight?: Promise<void>;
   protected queuedState?: TState;
+
+  protected logger = logger;
 
   constructor(
     public readonly id: string,
@@ -72,6 +78,10 @@ export abstract class EntityBase<TState extends string> {
 
   async discover(): Promise<void> {
     if (this.discoveryInFlight) return this.discoveryInFlight;
+    logger.debug(
+      "HA Discovery for",
+      `${this.id}(${this.platform}) via ${this.device.id}`,
+    );
 
     this.discoveryInFlight = mqtt
       .publishAsync(
