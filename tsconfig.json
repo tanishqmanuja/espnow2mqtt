@@ -19,5 +19,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "tests", "src/.backup/espnow.ts", "src/.backup/gateway.ts", "src/.backup/mqtt.ts"]
+  "include": ["src", "tests", "src/.app.ts"]
 }

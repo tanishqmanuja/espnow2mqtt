@@ -78,9 +78,6 @@ void setup() {
   ledSwitch.onChange = [](bool st){ digitalWrite(LED_BUILTIN, !st); };
 
   discoveryInit();
-  registry.forEach([](Entity& e) {
-    discoEnqueue(&e); 
-  });
 }
 
 void loop() {

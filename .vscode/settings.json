@@ -15,6 +15,13 @@
   "peacock.color": "#e5fc64",
   "peacock.affectActivityBar": false,
   "files.associations": {
-    "functional": "cpp"
+    "functional": "cpp",
+    "format": "cpp",
+    "initializer_list": "cpp",
+    "list": "cpp",
+    "vector": "cpp",
+    "xhash": "cpp",
+    "xstring": "cpp",
+    "xutility": "cpp"
   }
 }

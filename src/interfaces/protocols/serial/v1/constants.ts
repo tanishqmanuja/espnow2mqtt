@@ -1,15 +1,14 @@
-// PROTOCOL
-export const SYNC = 0xaa;
-export const VERSION = 0x01;
+export const SYNC_BYTE = 0xaa as const;
+export const PROTOCOL_VERSION = 0x01 as const;
 
-// HEADER
-export const SYNC_SIZE = 1;
-export const VERSION_SIZE = 1;
-export const TYPE_SIZE = 1;
-export const HEADER_SIZE = SYNC_SIZE + VERSION_SIZE + TYPE_SIZE;
+export const SIZE = {
+  SYNC: 1,
+  VERSION: 1,
+  TYPE: 1,
+  MAC: 6,
+  RSSI: 1,
+  LEN: 1,
+  CRC: 1,
+} as const;
 
-// OTHERS
-export const MAC_SIZE = 6;
-export const RSSI_SIZE = 1;
-export const LEN_SIZE = 1;
-export const CRC_SIZE = 1;
+export const FIXED_HEADER_SIZE = SIZE.SYNC + SIZE.VERSION + SIZE.TYPE;

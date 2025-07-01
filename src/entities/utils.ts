@@ -4,13 +4,6 @@ import { env } from "@/env";
 
 const UNIQUE_ID_PREFIX = "espnow";
 
-export function normalisePrefix(prefixRaw: string | undefined): string {
-  const prefix = (prefixRaw ?? "").replace(/\/+$/, "");
-  if (!prefix)
-    throw new Error("env.MQTT_ESPNOW2MQTT_PREFIX is empty or undefined");
-  return prefix;
-}
-
 const MAC_NO_COLON = /^[0-9a-f]{12}$/i;
 function buildNodeId(device: { id: string; mac: string }): string {
   const macNoColon = device.mac.toLowerCase().replace(/:/g, "");
@@ -33,7 +26,7 @@ export function getDiscoveryTopic({
   entityId: string;
   deviceId: string;
 }): string {
-  const prefix = normalisePrefix(env.MQTT_HA_PREFIX);
+  const prefix = env.MQTT_HA_PREFIX;
   const uid = getUniqueId(entityId, deviceId);
   return `${prefix}/${platform}/${uid}/config`;
 }
@@ -45,7 +38,7 @@ export function getEntityTopic({
   entityId: string;
   device: { id: string; mac: string };
 }): string {
-  const prefix = normalisePrefix(env.MQTT_ESPNOW2MQTT_PREFIX);
+  const prefix = env.MQTT_ESPNOW2MQTT_PREFIX;
   const nodeId = buildNodeId(device);
   const objectId = entityId;
   return `${prefix}/${nodeId}/${objectId}`;
@@ -58,7 +51,7 @@ export function extractFromTopic(
   entityId: string;
   device: { id: string; mac: string };
 } | null {
-  const prefix = normalisePrefix(env.MQTT_ESPNOW2MQTT_PREFIX);
+  const prefix = env.MQTT_ESPNOW2MQTT_PREFIX;
 
   if (!topic.startsWith(prefix + "/")) return null;
   const remainder = topic.slice(prefix.length + 1);

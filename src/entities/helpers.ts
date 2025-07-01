@@ -1,13 +1,20 @@
-import { INTERFACES } from "@/interfaces";
+import { getInterfaces } from "@/interfaces";
 
-import type { DeviceEntity } from "./device";
+import type { Entity } from "./base";
+import type { Device } from "./device";
 
-const { serial } = INTERFACES;
+const { serial } = getInterfaces();
 
-export type PendingJob = () => void; // what to do after discovery
+export type PendingJob = ({
+  device,
+  entity,
+}: {
+  device: Device;
+  entity: Entity;
+}) => void; // what to do after discovery
 export type EntityKey = `${string}/${string}`; //  dev_id/entity_id  (cheap tuple)
 
-export const devicemap = new Map<string, DeviceEntity>();
+export const devicemap = new Map<string, Device>();
 export const pendingJobs = new Map<EntityKey, PendingJob[]>();
 export const pendingReq = new Set<EntityKey>(); // to debounce discovery traffic
 
@@ -22,7 +29,7 @@ export function ensureEntityThen(
   // Already in memory?  → run job right away
   const device = devicemap.get(devId);
   if (device && device.entities.has(entityId)) {
-    job();
+    job({ device, entity: device.entities.get(entityId)! });
     return;
   }
 

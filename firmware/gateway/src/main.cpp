@@ -34,20 +34,12 @@ void onEspNowTx(const uint8_t* mac, const uint8_t* payload, uint8_t len) {
 void setup() {
   /* Setup Serial */
   Serial.begin(SERIAL_BAUD_RATE);
-  delay(100);
 
   /* Setup Blinker  */
   blinker.setup(); 
   
   /* Setup ESP Now */
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect(false);
-  
-  if (!quickEspNow.begin(ESPNOW_WIFI_CHANNEL)) {
-    delay(1000);
-    ESP.restart();
-  }
-  
+  quickEspNow.begin(ESPNOW_WIFI_CHANNEL);
   quickEspNow.onDataSent(onDataSend);
   quickEspNow.onDataRcvd(onDataRcvd);
 

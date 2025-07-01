@@ -2,6 +2,7 @@ import { prettifyError, z } from "zod/v4";
 
 const ENV_SCHEMA = z.object({
   NODE_ENV: z.enum(["development", "production"]).default("development"),
+  DEBUG: z.coerce.boolean().default(false),
 
   // MQTT
   MQTT_HOST: z.string(),

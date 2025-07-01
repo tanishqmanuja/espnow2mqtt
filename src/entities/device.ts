@@ -1,89 +1,120 @@
-import { snakeCase, titleCase } from "scule";
+import { titleCase } from "scule";
 
 import { APP_VERSION } from "@/constants";
-import { GATEWAT_DEVICE_ID } from "@/devices/gateway";
-import { env } from "@/env";
-import { INTERFACES } from "@/interfaces";
-import { debounce } from "@/utils/debouce";
+import { GATEWAY_DEVICE_ID } from "@/devices/gateway";
+import { getInterfaces } from "@/interfaces";
+import { debounce } from "@/utils/debounce";
+import { createLogger } from "@/utils/logger";
 
-import type { BinarySensorEntity } from "./platforms/binary-sensor";
-import type { SwitchEntity } from "./platforms/switch";
+import type { Entity } from "./base";
+import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 
-const { mqtt, serial } = INTERFACES;
+const { mqtt, serial } = getInterfaces();
+const log = createLogger("DEVICE");
 
-export class DeviceEntity {
-  readonly entities = new Map<string, BinarySensorEntity | SwitchEntity>();
+export class Device {
+  readonly entities = new Map<string, Entity>();
 
   constructor(
     public readonly id: string,
     public readonly mac: string,
   ) {}
 
-  get DeviceInfo() {
-    return {
-      ids: [this.id, this.mac],
-      cns: [["mac", this.mac]],
-      name: titleCase(this.id),
-      mf: "tmlabs",
-      mdl: "ESPNow Node",
-      via_device: GATEWAT_DEVICE_ID,
-    };
+  private buildDiscoveryTopic(): string {
+    return getDiscoveryTopic({
+      platform: "sensor",
+      entityId: "rssi",
+      deviceId: this.id,
+    });
   }
 
-  get DeviceInfoShort() {
-    return {
-      ids: this.DeviceInfo.ids,
-      cns: this.DeviceInfo.cns,
-    };
+  private buildStateTopic(): string {
+    const config = this.buildRSSIEntityConfig();
+    return config.state_topic.replace("~", config["~"]);
   }
 
-  get DeviceOrigin() {
-    return {
-      name: "espnow2mqtt",
-      sw: APP_VERSION,
-      url: "https://espnow2mqtt.example.com/support",
-    };
-  }
+  private buildRSSIEntityConfig() {
+    const baseTopic = getEntityTopic({ entityId: "rssi", device: this });
 
-  get RSSIEntityConfig() {
-    return {
-      unique_id: `e2m_${this.id}_rssi`,
-      state_topic: this.rssiStateTopic,
+    return Object.freeze({
+      "~": baseTopic,
+      unique_id: getUniqueId("rssi", this.id),
+      state_topic: "~/rssi",
       device_class: "signal_strength",
       unit_of_measurement: "dBm",
       entity_category: "diagnostic",
-      qos: 2,
-    };
-  }
-
-  get rssiDiscoveryTopic() {
-    return `${env.MQTT_HA_PREFIX}/sensor/e2m_${snakeCase(this.id)}_rssi/config`;
-  }
-  get rssiStateTopic() {
-    return `${env.MQTT_ESPNOW2MQTT_PREFIX}/${this.mac.replaceAll(":", "")}/rssi`;
-  }
-
-  discoverRSSI() {
-    return mqtt.publishAsync(
-      this.rssiDiscoveryTopic,
-      JSON.stringify({
-        dev: this.DeviceInfo,
-        o: this.DeviceOrigin,
-        ...this.RSSIEntityConfig,
-      }),
-    );
-  }
-
-  private _updateRSSI(rssi: number) {
-    mqtt.publish(this.rssiStateTopic, rssi.toString());
-  }
-  updateRSSI = debounce((rssi: number) => this._updateRSSI(rssi), 1000);
-
-  requestDiscovery(entityId: string) {
-    const payloadStr = JSON.stringify({ typ: "dscvry", id: entityId });
-    serial.send("ESPNOW_TX", {
-      mac: this.mac,
-      payload: Buffer.from(payloadStr),
+      qos: 2 as const,
     });
+  }
+
+  buildDeviceInfo() {
+    return Object.freeze({
+      ids: [this.id, this.mac],
+      cns: [["mac", this.mac]] as const,
+      name: titleCase(this.id),
+      mf: "tmlabs",
+      mdl: "ESPNow Node",
+      via_device: GATEWAY_DEVICE_ID,
+    });
+  }
+
+  buildDeviceInfoShort() {
+    const { ids, cns } = this.buildDeviceInfo();
+    return { ids, cns } as const;
+  }
+
+  buildDeviceOrigin() {
+    return Object.freeze({
+      name: "espnow2mqtt",
+      sw: APP_VERSION,
+      url: "https://espnow2mqtt.example.com/support",
+    });
+  }
+
+  async discoverRSSI(): Promise<void> {
+    const payload = {
+      dev: this.buildDeviceInfo(),
+      o: this.buildDeviceOrigin(),
+      ...this.buildRSSIEntityConfig(),
+    };
+
+    try {
+      await mqtt.publishAsync(
+        this.buildDiscoveryTopic(),
+        JSON.stringify(payload),
+      );
+      log.debug("Published RSSI discovery for", this.id);
+    } catch (err) {
+      log.warn("Failed to publish RSSI discovery:", err);
+    }
+  }
+
+  private publishRSSIValue(rssi: number) {
+    try {
+      mqtt.publish(this.buildStateTopic(), rssi.toString());
+    } catch (err) {
+      log.warn("Failed to publish RSSI for", this.id, ":", err);
+    }
+  }
+
+  readonly updateRSSI = debounce(
+    (rssi: number) => this.publishRSSIValue(rssi),
+    1_000,
+  );
+
+  hasEntity(entityId: string): boolean {
+    return this.entities.has(entityId);
+  }
+
+  addEntity(entityId: string, entity: Entity): void {
+    this.entities.set(entityId, entity);
+  }
+
+  requestEntityDiscovery(entityId: string): void {
+    const payload = Buffer.from(
+      JSON.stringify({ typ: "dscvry", id: entityId }),
+    );
+    serial.send("ESPNOW_TX", { mac: this.mac, payload });
+    log.debug("Requested discovery for", entityId, "on", this.id);
   }
 }

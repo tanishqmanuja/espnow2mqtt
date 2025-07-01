@@ -1,99 +1,32 @@
-import { titleCase } from "scule";
+import { z } from "zod/v4";
 
-import { INTERFACES } from "@/interfaces";
-import type { DecodedPacket } from "@/interfaces/protocols/serial/v1";
-import { sleep } from "@/utils/timers";
+import type { DecodedPacket } from "@/interfaces/protocols/serial";
 
-import { HA_DISCOVERY_COOLDOWN_MS } from "../constants";
-import type { DeviceEntity } from "../device";
+import { EntityBase } from "../base";
 import { PLATFORM } from "../platforms";
-import { getDiscoveryTopic, getEntityTopic } from "../utils";
 
-const { mqtt } = INTERFACES;
+const BinarySensorPayloadSchema = z.object({
+  p: z.literal(PLATFORM.BINARY_SENSOR),
+  id: z.string(),
+  stat: z.union([z.literal("ON"), z.literal("OFF")]),
+  dev_id: z.string(),
+});
 
-type BinarySensorPayload = {
-  p: typeof PLATFORM.BINARY_SENSOR;
-  id: string;
-  stat: "ON" | "OFF";
-  dev_id: string;
-};
+type BinarySensorPayload = z.infer<typeof BinarySensorPayloadSchema>;
+export type BinarySensorState = "ON" | "OFF";
 
-function isBinarySensorPayload(payload: any): payload is BinarySensorPayload {
-  return "p" in payload && payload.p === PLATFORM.BINARY_SENSOR;
-}
+export class BinarySensorEntity extends EntityBase<BinarySensorState> {
+  protected platform = PLATFORM.BINARY_SENSOR;
 
-export class BinarySensorEntity {
-  #discoveryPromise?: Promise<unknown>;
+  processPacket(packet: DecodedPacket): void {
+    if (packet.type !== "ESPNOW_RX") return;
 
-  constructor(
-    public readonly id: string,
-    public readonly device: DeviceEntity,
-  ) {
-    // serial.on("packet", packet => this.processPacket(packet));
-  }
+    const parsed = BinarySensorPayloadSchema.safeParse(packet.payload);
+    if (!parsed.success) return;
 
-  processPacket(packet: DecodedPacket) {
-    if (packet.type !== "ESPNOW_RX") {
-      return;
-    }
+    const data: BinarySensorPayload = parsed.data;
+    if (data.id !== this.id) return;
 
-    const payload = packet.payload;
-    if (!isBinarySensorPayload(payload)) {
-      return;
-    }
-
-    if (payload.id === this.id) {
-      this.updateState(payload.stat);
-    }
-  }
-
-  get entityTopic() {
-    return getEntityTopic({
-      entityId: this.id,
-      device: this.device,
-    });
-  }
-
-  get entityConfig() {
-    return {
-      "~": this.entityTopic,
-      name: titleCase(this.id),
-      uniq_id: `e2m_${this.device.id}_${this.id}_state`,
-      stat_t: "~/state",
-      qos: 2,
-    };
-  }
-
-  get discoveryTopic() {
-    return getDiscoveryTopic({
-      platform: PLATFORM.BINARY_SENSOR,
-      entityId: this.id,
-      deviceId: this.device.id,
-    });
-  }
-
-  get stateTopic() {
-    return this.entityConfig.stat_t.replace("~", this.entityTopic);
-  }
-
-  discover() {
-    this.#discoveryPromise = mqtt
-      .publishAsync(
-        this.discoveryTopic,
-        JSON.stringify({
-          dev: this.device.DeviceInfoShort,
-          ...this.entityConfig,
-        }),
-      )
-      ?.then(() => sleep(HA_DISCOVERY_COOLDOWN_MS))
-      .then(() => (this.#discoveryPromise = undefined));
-  }
-
-  updateState(state: "ON" | "OFF") {
-    if (this.#discoveryPromise) {
-      this.#discoveryPromise.finally(() => this.updateState(state));
-    } else {
-      mqtt.publish(this.stateTopic, state);
-    }
+    void this.updateState(data.stat);
   }
 }

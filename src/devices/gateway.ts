@@ -1,14 +1,14 @@
 import { APP_PROTOCOL_VERSION, APP_VERSION } from "@/constants";
 import { env } from "@/env";
-import { INTERFACES } from "@/interfaces";
-import { debounce } from "@/utils/debouce";
+import { getInterfaces } from "@/interfaces";
+import { debounce } from "@/utils/debounce";
 import { sleep } from "@/utils/timers";
 
 const UPDATE_INTERVAL_SEC = 60;
 
-export const GATEWAT_DEVICE_ID = "espnow2mqtt_gateway_device";
+export const GATEWAY_DEVICE_ID = "espnow2mqtt_gateway_device";
 
-const { mqtt, serial } = INTERFACES;
+const { mqtt, serial } = getInterfaces();
 
 export class GatewayDevice {
   #discoveryPromise?: Promise<unknown>;
@@ -41,7 +41,7 @@ export class GatewayDevice {
 
     const payload: Record<string, any> = {
       dev: {
-        ids: [GATEWAT_DEVICE_ID],
+        ids: [GATEWAY_DEVICE_ID],
         name: "ESPNOW MQTT Gateway",
         mf: "tmlabs",
         mdl: "ESPNow Gateway",
