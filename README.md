@@ -20,3 +20,8 @@ pnpm start
 ## Demo
 
 [demo.webm](https://github.com/user-attachments/assets/049065f9-64cb-4f12-8930-6649b20406bf)
+
+## Supported Platforms
+
+- [Switch](https://www.home-assistant.io/integrations/switch/)
+- [Binary Sensor](https://www.home-assistant.io/integrations/binary_sensor/)
