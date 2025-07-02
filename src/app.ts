@@ -35,6 +35,7 @@ function isIgnorableSerialError(err: Error): boolean {
 
 export class App {
   private started = false;
+  private gateway?: GatewayDevice;
 
   async start(): Promise<void> {
     if (this.started) return;
@@ -43,7 +44,10 @@ export class App {
     this.bindMqttEvents();
     this.bindSerialEvents();
 
-    GatewayDevice.init();
+    mqtt.once("connected", () => {
+      this.gateway = GatewayDevice.init();
+    });
+
     await initInterfaces();
 
     this.subscribeRuntimeTopics();
@@ -55,6 +59,8 @@ export class App {
 
     this.unbindMqttEvents();
     this.unbindSerialEvents();
+
+    if (this.gateway) this.gateway.stop();
 
     await shutdownInterfaces();
   }

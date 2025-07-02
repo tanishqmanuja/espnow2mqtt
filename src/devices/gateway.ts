@@ -1,45 +1,58 @@
 import { APP_PROTOCOL_VERSION, APP_VERSION } from "@/constants";
+import { HA_DISCOVERY_COOLDOWN_MS } from "@/entities/constants";
+import { getDiscoveryTopic, getUniqueId } from "@/entities/utils";
 import { env } from "@/env";
 import { getInterfaces } from "@/interfaces";
 import { debounce } from "@/utils/debounce";
+import { createLogger } from "@/utils/logger";
 import { sleep } from "@/utils/timers";
 
-const UPDATE_INTERVAL_SEC = 60;
+const { mqtt, serial } = getInterfaces();
+const log = createLogger("GATEWAY");
 
 export const GATEWAY_DEVICE_ID = "espnow2mqtt_gateway_device";
 
-const { mqtt, serial } = getInterfaces();
+const SERIAL_DISCOVERY_TOPIC = getDiscoveryTopic({
+  platform: "binary_sensor",
+  entityId: "serial",
+  deviceId: GATEWAY_DEVICE_ID,
+});
+const SERIAL_ENTITY_TOPIC = `${env.MQTT_ESPNOW2MQTT_PREFIX}/${GATEWAY_DEVICE_ID}/serial`;
+const SERIAL_UPDATE_INTERVAL_MS = 60 * 1000;
 
 export class GatewayDevice {
-  #discoveryPromise?: Promise<unknown>;
-  private mac: string | undefined;
+  private mac?: string;
+  private discoveryInFlight?: Promise<void>;
 
-  constructor() {
-    mqtt.on("connected", () => {
-      this.discover();
-      this.update();
-    });
-
-    serial.on("connected", () => this.update());
-    serial.on("disconnected", () => this.update());
-    serial.on("packet", p => {
-      if (p.type === "GATEWAY_INIT") {
-        this.discover(p.mac);
-        this.update();
-      }
-    });
-
-    setInterval(() => this.update(), UPDATE_INTERVAL_SEC * 1000);
-  }
+  private interval?: ReturnType<typeof setInterval>;
 
   static init() {
     return new GatewayDevice();
   }
 
-  private async _discover(mac?: string) {
+  private constructor() {
+    this.discover();
+
+    serial.on("connected", () => this.update(true));
+    serial.on("disconnected", () => this.update(false));
+    serial.on("packet", this.onSerialPacket);
+
+    this.interval = setInterval(() => this.update(), SERIAL_UPDATE_INTERVAL_MS);
+  }
+
+  stop(): void {
+    mqtt.off("connected", this.update);
+    mqtt.off("connected", this.discover);
+    serial.off("connected", () => this.update(true));
+    serial.off("disconnected", () => this.update(false));
+    serial.off("packet", this.onSerialPacket);
+    clearInterval(this.interval);
+  }
+
+  private readonly discover = debounce(async (mac?: string) => {
     if (mac) this.mac = mac;
 
-    const payload: Record<string, any> = {
+    const payload = {
       dev: {
         ids: [GATEWAY_DEVICE_ID],
         name: "ESPNOW MQTT Gateway",
@@ -47,48 +60,61 @@ export class GatewayDevice {
         mdl: "ESPNow Gateway",
         sw: APP_VERSION,
         hw: `${env.SERIAL_PORT} // Protocol v${APP_PROTOCOL_VERSION}`,
+        ...(this.mac ? { cns: [["mac", this.mac]] as const } : {}),
       },
       o: {
         name: "espnow2mqtt",
         sw: APP_VERSION,
         url: "https://github.com/tanishqmanuja/espnow2mqtt",
       },
+      "~": SERIAL_ENTITY_TOPIC,
       device_class: "connectivity",
-      value_template: "{{ value_json.connected }}",
-      unique_id: "en2m_serial",
+      uniq_id: getUniqueId("serial", GATEWAY_DEVICE_ID),
       name: "Serial",
-      state_topic: `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
-      expire_after: 120,
+      stat_t: "~/state",
+      expire_after: (2 * SERIAL_UPDATE_INTERVAL_MS) / 1000,
       force_update: true,
-      entity_category: "diagnostic",
+      ent_cat: "diagnostic",
       qos: 2,
     };
 
-    if (this.mac) {
-      payload.dev["cns"] = [["mac", this.mac]];
-    }
-
-    this.#discoveryPromise = mqtt
-      .publishAsync(
-        `${env.MQTT_HA_PREFIX}/binary_sensor/espnow2mqtt_serial/config`,
+    try {
+      this.discoveryInFlight = mqtt.publishAsync(
+        SERIAL_DISCOVERY_TOPIC,
         JSON.stringify(payload),
-      )
-      ?.then(() => sleep(1000))
-      .finally(() => (this.#discoveryPromise = undefined));
-  }
-  discover = debounce((mac?: string) => this._discover(mac), 1000);
+      );
+      await this.discoveryInFlight;
+      await sleep(HA_DISCOVERY_COOLDOWN_MS);
+      log.debug("Published HA discovery");
 
-  private _update(state: boolean = serial.isConnected) {
-    if (this.#discoveryPromise) {
-      this.#discoveryPromise.finally(() => {
-        this._update(state);
-      });
+      // to prevent Unavailable state in HA
+      this.update();
+    } catch (err) {
+      log.warn("Failed HA discovery:", err);
+    } finally {
+      this.discoveryInFlight = undefined;
+    }
+  }, 1000);
+
+  get serialStateTopic() {
+    return `${SERIAL_ENTITY_TOPIC}/state`;
+  }
+
+  private update(state: boolean = serial.isConnected): void {
+    if (this.discoveryInFlight) {
+      void this.discoveryInFlight.finally(() => this.update(state));
+      return;
     }
 
-    mqtt.publish(
-      `${env.MQTT_ESPNOW2MQTT_PREFIX}/serial/state`,
-      JSON.stringify({ connected: state ? "ON" : "OFF" }),
-    );
+    const published = mqtt.publish(this.serialStateTopic, state ? "ON" : "OFF");
+    if (published) {
+      log.debug("Published serial state", state);
+    }
   }
-  update = debounce((state?: boolean) => this._update(state), 1000);
+
+  private readonly onSerialPacket = (pkt: any): void => {
+    if (pkt.type === "GATEWAY_INIT") {
+      this.discover(pkt.mac);
+    }
+  };
 }

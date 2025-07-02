@@ -33,20 +33,22 @@ export class MqttInterface extends EventEmitter<MqttInterfaceEventMap> {
   async init(): Promise<void> {
     if (this.client) return;
 
-    this.client = mqtt.connect({
-      host: env.MQTT_HOST,
-      port: env.MQTT_PORT,
-      username: env.MQTT_USER,
-      password: env.MQTT_PASSWORD,
-      reconnectPeriod: RECONNECT_DELAY_MS,
-    });
+    try {
+      this.client = await mqtt.connectAsync({
+        host: env.MQTT_HOST,
+        port: env.MQTT_PORT,
+        username: env.MQTT_USER,
+        password: env.MQTT_PASSWORD,
+        reconnectPeriod: RECONNECT_DELAY_MS,
+      });
 
-    this.wireEvents();
-
-    await new Promise<void>((res, rej) => {
-      this.client!.once("connect", () => res());
-      this.client!.once("error", err => rej(err));
-    });
+      this.wireEvents();
+      this.isReady = true;
+      this.emit("connected");
+    } catch (err) {
+      this.isReady = false;
+      this.emit("disconnected");
+    }
   }
 
   async stop(): Promise<void> {
@@ -61,14 +63,18 @@ export class MqttInterface extends EventEmitter<MqttInterfaceEventMap> {
     topic: string,
     payload: string | Buffer,
     opts: IClientPublishOptions = {},
-  ): void {
-    if (!this.isConnected) return mlog.warn("Dropping publish, not connected");
+  ): boolean {
+    if (!this.isConnected) {
+      mlog.warn("Dropping publish, not connected");
+      return false;
+    }
     this.client!.publish(
       topic,
       payload,
       opts,
       err => err && this.emit("error", err),
     );
+    return true;
   }
 
   /** Promise‑based publish (useful for QoS 1/2). */

@@ -13,7 +13,7 @@ const BinarySensorPayloadSchema = z.object({
   dev_id: z.string(),
 });
 
-type BinarySensorPayload = z.infer<typeof BinarySensorPayloadSchema>;
+export type BinarySensorPayload = z.infer<typeof BinarySensorPayloadSchema>;
 export type BinarySensorState = "ON" | "OFF";
 
 export class BinarySensorEntity extends EntityBase<BinarySensorState> {

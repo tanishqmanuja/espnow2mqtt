@@ -17,7 +17,7 @@ const SwitchPayloadSchema = z.object({
   dev_id: z.string(),
 });
 
-type SwitchPayload = z.infer<typeof SwitchPayloadSchema>;
+export type SwitchPayload = z.infer<typeof SwitchPayloadSchema>;
 export type SwitchState = "ON" | "OFF";
 
 export class SwitchEntity
