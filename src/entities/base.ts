@@ -12,7 +12,7 @@ import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 
 const { mqtt } = getInterfaces();
 
-const logger = createLogger("ENTITY", rgb(119, 221, 119));
+export const entityLogger = createLogger("ENTITY", rgb(119, 221, 119));
 
 export type Entity = EntityBase<any>;
 
@@ -28,7 +28,7 @@ export abstract class EntityBase<TState extends string> {
   protected discoveryInFlight?: Promise<void>;
   protected queuedState?: TState;
 
-  protected logger = logger;
+  protected logger = entityLogger;
 
   constructor(
     public readonly id: string,
@@ -78,7 +78,7 @@ export abstract class EntityBase<TState extends string> {
 
   async discover(): Promise<void> {
     if (this.discoveryInFlight) return this.discoveryInFlight;
-    logger.debug(
+    entityLogger.debug(
       "HA Discovery for",
       `${this.id}(${this.platform}) via ${this.device.id}`,
     );

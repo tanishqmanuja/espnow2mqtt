@@ -21,32 +21,46 @@ const SERIAL_ENTITY_TOPIC = `${env.MQTT_ESPNOW2MQTT_PREFIX}/${GATEWAY_DEVICE_ID}
 const SERIAL_UPDATE_INTERVAL_MS = 60 * 1000;
 
 export class GatewayDevice {
+  static #instance?: GatewayDevice;
+
   private mac?: string;
   private discoveryInFlight?: Promise<void>;
 
   private interval?: ReturnType<typeof setInterval>;
 
   static init() {
-    return new GatewayDevice();
+    if (this.#instance) {
+      return this.#instance;
+    }
+
+    this.#instance = new GatewayDevice();
+    return this.#instance;
   }
 
   private constructor() {
-    this.discover();
+    mqtt.once("connected", () => {
+      this.discover();
 
-    serial.on("connected", () => this.update(true));
-    serial.on("disconnected", () => this.update(false));
-    serial.on("packet", this.onSerialPacket);
+      serial.on("connected", () => this.update(true));
+      serial.on("disconnected", () => this.update(false));
+      serial.on("packet", this.onSerialPacket);
 
-    this.interval = setInterval(() => this.update(), SERIAL_UPDATE_INTERVAL_MS);
+      this.interval = setInterval(
+        () => this.update(),
+        SERIAL_UPDATE_INTERVAL_MS,
+      );
+    });
   }
 
-  stop(): void {
-    mqtt.off("connected", this.update);
-    mqtt.off("connected", this.discover);
+  protected _stop(): void {
     serial.off("connected", () => this.update(true));
     serial.off("disconnected", () => this.update(false));
     serial.off("packet", this.onSerialPacket);
     clearInterval(this.interval);
+  }
+
+  static stop() {
+    this.#instance?._stop();
   }
 
   private readonly discover = debounce(async (mac?: string) => {
@@ -55,7 +69,7 @@ export class GatewayDevice {
     const payload = {
       dev: {
         ids: [GATEWAY_DEVICE_ID],
-        name: "ESPNOW MQTT Gateway",
+        name: "ESPNow Gateway",
         mf: "tmlabs",
         mdl: "ESPNow Gateway",
         sw: APP_VERSION,

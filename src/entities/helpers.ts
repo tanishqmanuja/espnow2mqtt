@@ -1,9 +1,10 @@
 import { getInterfaces } from "@/interfaces";
 
-import type { Entity } from "./base";
+import { entityLogger, type Entity } from "./base";
 import type { Device } from "./device";
 
 const { serial } = getInterfaces();
+const log = entityLogger;
 
 export type PendingJob = ({
   device,
@@ -40,6 +41,7 @@ export function ensureEntityThen(
   if (!pendingReq.has(key)) {
     pendingReq.add(key);
 
+    log.debug("Requesting auto discovery for", entityId, "on", mac);
     const payloadStr = JSON.stringify({ typ: "dscvry", id: entityId });
     serial.send("ESPNOW_TX", {
       mac,

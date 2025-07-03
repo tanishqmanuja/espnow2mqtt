@@ -20,7 +20,7 @@ export class Device {
     public readonly id: string,
     public readonly mac: string,
   ) {
-    log.debug("Created", id, mac);
+    log.info("Created", id, mac);
   }
 
   private buildDiscoveryTopic(): string {
@@ -37,12 +37,12 @@ export class Device {
   }
 
   private buildRSSIEntityConfig() {
-    const baseTopic = getEntityTopic({ entityId: "rssi", device: this });
+    const baseTopic = getEntityTopic({ entityId: ".rssi", device: this });
 
     return Object.freeze({
       "~": baseTopic,
       unique_id: getUniqueId("rssi", this.id),
-      state_topic: "~/rssi",
+      state_topic: "~/state",
       device_class: "signal_strength",
       unit_of_measurement: "dBm",
       entity_category: "diagnostic",

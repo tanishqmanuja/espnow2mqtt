@@ -21,7 +21,7 @@ export class BinarySensorEntity extends EntityBase<BinarySensorState> {
 
   constructor(id: string, device: Device) {
     super(id, device);
-    this.logger.debug("Created", this.platform, id, device.id);
+    this.logger.info("Created", this.platform, id, device.id);
   }
 
   processPacket(packet: DecodedPacket): void {

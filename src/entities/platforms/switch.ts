@@ -28,7 +28,7 @@ export class SwitchEntity
 
   constructor(id: string, device: Device) {
     super(id, device);
-    this.logger.debug("Created", this.platform, id, device.id);
+    this.logger.info("Created", this.platform, id, device.id);
   }
 
   processMessage(topic: string, payload: Buffer): void {
