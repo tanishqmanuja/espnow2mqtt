@@ -1,7 +1,7 @@
 import { getInterfaces } from "@/interfaces";
 
+import type { EspNowDevice } from "../devices/espnow";
 import { entityLogger, type Entity } from "./base";
-import type { Device } from "./device";
 
 const { serial } = getInterfaces();
 const log = entityLogger;
@@ -10,12 +10,12 @@ export type PendingJob = ({
   device,
   entity,
 }: {
-  device: Device;
+  device: EspNowDevice;
   entity: Entity;
 }) => void; // what to do after discovery
 export type EntityKey = `${string}/${string}`; //  dev_id/entity_id  (cheap tuple)
 
-export const devicemap = new Map<string, Device>();
+export const devicemap = new Map<string, EspNowDevice>();
 export const pendingJobs = new Map<EntityKey, PendingJob[]>();
 export const pendingReq = new Set<EntityKey>(); // to debounce discovery traffic
 

@@ -2,15 +2,16 @@ import { z } from "zod/v4";
 
 import type { DecodedPacket } from "@/interfaces/protocols/serial";
 
+import type { EspNowDevice } from "../../devices/espnow";
 import { EntityBase } from "../base";
-import type { Device } from "../device";
+import { ENK } from "../keys";
 import { PLATFORM } from "../platforms";
 
 const BinarySensorPayloadSchema = z.object({
-  p: z.literal(PLATFORM.BINARY_SENSOR),
-  id: z.string(),
-  stat: z.union([z.literal("ON"), z.literal("OFF")]),
-  dev_id: z.string(),
+  [ENK.platform]: z.literal(PLATFORM.BINARY_SENSOR),
+  [ENK.id]: z.string(),
+  [ENK.state]: z.union([z.literal("ON"), z.literal("OFF")]),
+  [ENK.device_id]: z.string(),
 });
 
 export type BinarySensorPayload = z.infer<typeof BinarySensorPayloadSchema>;
@@ -19,7 +20,7 @@ export type BinarySensorState = "ON" | "OFF";
 export class BinarySensorEntity extends EntityBase<BinarySensorState> {
   readonly platform = PLATFORM.BINARY_SENSOR;
 
-  constructor(id: string, device: Device) {
+  constructor(id: string, device: EspNowDevice) {
     super(id, device);
     this.logger.info("Created", this.platform, id, device.id);
   }
@@ -33,6 +34,6 @@ export class BinarySensorEntity extends EntityBase<BinarySensorState> {
     const data: BinarySensorPayload = parsed.data;
     if (data.id !== this.id) return;
 
-    void this.updateState(data.stat);
+    void this.updateState(data[ENK.state]);
   }
 }

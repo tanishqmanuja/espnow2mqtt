@@ -5,8 +5,9 @@ import { rgb } from "@/utils/colors";
 import { createLogger } from "@/utils/logger";
 import { sleep } from "@/utils/timers";
 
+import type { EspNowDevice } from "../devices/espnow";
 import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
-import type { Device } from "./device";
+import { HAK } from "./keys";
 import { COMMAND_CAPABLE_PLATFORMS } from "./platforms";
 import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 
@@ -32,7 +33,7 @@ export abstract class EntityBase<TState extends string> {
 
   constructor(
     public readonly id: string,
-    public readonly device: Device,
+    public readonly device: EspNowDevice,
   ) {}
 
   protected get supportsCommand(): boolean {
@@ -46,14 +47,14 @@ export abstract class EntityBase<TState extends string> {
   protected get entityConfig() {
     const config: Record<string, unknown> = {
       "~": this.entityTopic,
-      name: titleCase(this.id),
-      uniq_id: getUniqueId(this.id, this.device.id),
-      stat_t: "~/state",
-      qos: 2 as const,
+      [HAK.name]: titleCase(this.id),
+      [HAK.unique_id]: getUniqueId(this.id, this.device.id),
+      [HAK.state_topic]: "~/state",
+      qos: 2,
     };
 
     if (this.supportsCommand) {
-      config.cmd_t = "~/cmd";
+      config[HAK.command_topic] = "~/cmd";
     }
 
     return config;
@@ -68,12 +69,18 @@ export abstract class EntityBase<TState extends string> {
   }
 
   protected get stateTopic(): string {
-    return (this.entityConfig.stat_t as string).replace("~", this.entityTopic);
+    return (this.entityConfig[HAK.state_topic] as string).replace(
+      "~",
+      this.entityTopic,
+    );
   }
 
   protected get commandTopic(): string | undefined {
     if (!this.supportsCommand) return undefined;
-    return (this.entityConfig.cmd_t as string).replace("~", this.entityTopic);
+    return (this.entityConfig[HAK.command_topic] as string).replace(
+      "~",
+      this.entityTopic,
+    );
   }
 
   async discover(): Promise<void> {
@@ -87,7 +94,7 @@ export abstract class EntityBase<TState extends string> {
       .publishAsync(
         this.discoveryTopic,
         JSON.stringify({
-          dev: this.device.buildDeviceInfoShort(),
+          [HAK.device]: this.device.buildDeviceInfoShort(),
           ...this.entityConfig,
         }),
         { qos: 2 },

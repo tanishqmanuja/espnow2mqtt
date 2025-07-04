@@ -1,5 +1,5 @@
+import { EspNowDevice } from "../devices/espnow";
 import type { Entity } from "./base";
-import { Device } from "./device";
 import { PLATFORM, type Platform } from "./platforms";
 import { BinarySensorEntity } from "./platforms/binary-sensor";
 import { SwitchEntity } from "./platforms/switch";
@@ -7,7 +7,7 @@ import { SwitchEntity } from "./platforms/switch";
 export function createEntity(
   platform: Platform,
   id: string,
-  device: Device,
+  device: EspNowDevice,
 ): Entity {
   switch (platform) {
     case PLATFORM.SWITCH:
@@ -21,6 +21,6 @@ export function createEntity(
   }
 }
 
-export function createDevice(id: string, mac: string): Device {
-  return new Device(id, mac);
+export function createDevice(id: string, mac: string): EspNowDevice {
+  return new EspNowDevice(id, mac);
 }

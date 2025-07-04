@@ -5,12 +5,12 @@ import { env } from "@/env";
 import { getInterfaces } from "@/interfaces";
 import { debounce } from "@/utils/debounce";
 import { createLogger } from "@/utils/logger";
-import { sleep } from "@/utils/timers";
+import { sleep, type IntervalTimer } from "@/utils/timers";
 
 const { mqtt, serial } = getInterfaces();
 const log = createLogger("GATEWAY");
 
-export const GATEWAY_DEVICE_ID = "espnow2mqtt_gateway_device";
+export const GATEWAY_DEVICE_ID = "gateway_device";
 
 const SERIAL_DISCOVERY_TOPIC = getDiscoveryTopic({
   platform: "binary_sensor",
@@ -26,7 +26,7 @@ export class GatewayDevice {
   private mac?: string;
   private discoveryInFlight?: Promise<void>;
 
-  private interval?: ReturnType<typeof setInterval>;
+  private interval?: IntervalTimer;
 
   static init() {
     if (this.#instance) {
@@ -52,15 +52,14 @@ export class GatewayDevice {
     });
   }
 
-  protected _stop(): void {
-    serial.off("connected", () => this.update(true));
-    serial.off("disconnected", () => this.update(false));
-    serial.off("packet", this.onSerialPacket);
-    clearInterval(this.interval);
-  }
-
   static stop() {
-    this.#instance?._stop();
+    const that = this.#instance;
+    if (!that) return;
+
+    serial.off("connected", () => that.update(true));
+    serial.off("disconnected", () => that.update(false));
+    serial.off("packet", that.onSerialPacket);
+    clearInterval(that.interval);
   }
 
   private readonly discover = debounce(async (mac?: string) => {

@@ -2,18 +2,22 @@ import { titleCase } from "scule";
 
 import { APP_VERSION } from "@/constants";
 import { GATEWAY_DEVICE_ID } from "@/devices/gateway";
+import type { Entity } from "@/entities/base";
+import { HAK } from "@/entities/keys";
+import {
+  getDiscoveryTopic,
+  getEntityTopic,
+  getUniqueId,
+} from "@/entities/utils";
 import { getInterfaces } from "@/interfaces";
 import { rgb } from "@/utils/colors";
 import { debounce } from "@/utils/debounce";
 import { createLogger } from "@/utils/logger";
 
-import type { Entity } from "./base";
-import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
-
 const { mqtt, serial } = getInterfaces();
 const log = createLogger("DEVICE", rgb(174, 198, 207));
 
-export class Device {
+export class EspNowDevice {
   readonly entities = new Map<string, Entity>();
 
   constructor(
@@ -33,7 +37,7 @@ export class Device {
 
   private buildStateTopic(): string {
     const config = this.buildRSSIEntityConfig();
-    return config.state_topic.replace("~", config["~"]);
+    return config[HAK.state_topic].replace("~", config["~"]);
   }
 
   private buildRSSIEntityConfig() {
@@ -41,22 +45,22 @@ export class Device {
 
     return Object.freeze({
       "~": baseTopic,
-      unique_id: getUniqueId("rssi", this.id),
-      state_topic: "~/state",
-      device_class: "signal_strength",
-      unit_of_measurement: "dBm",
-      entity_category: "diagnostic",
-      qos: 2 as const,
+      [HAK.unique_id]: getUniqueId("rssi", this.id),
+      [HAK.state_topic]: "~/state",
+      [HAK.device_class]: "signal_strength",
+      [HAK.unit_of_measurement]: "dBm",
+      [HAK.entity_category]: "diagnostic",
+      qos: 2,
     });
   }
 
   buildDeviceInfo() {
     return Object.freeze({
-      ids: [this.id, this.mac],
-      cns: [["mac", this.mac]] as const,
-      name: titleCase(this.id),
-      mf: "tmlabs",
-      mdl: "ESPNow Node",
+      [HAK.identifiers]: [this.id, this.mac],
+      [HAK.connections]: [["mac", this.mac]] as const,
+      [HAK.name]: titleCase(this.id),
+      [HAK.manufacturer]: "tmlabs",
+      [HAK.model]: "ESPNow Node",
       via_device: GATEWAY_DEVICE_ID,
     });
   }
@@ -68,16 +72,16 @@ export class Device {
 
   buildDeviceOrigin() {
     return Object.freeze({
-      name: "espnow2mqtt",
-      sw: APP_VERSION,
-      url: "https://github.com/tanishqmanuja/espnow2mqtt",
+      [HAK.name]: "espnow2mqtt",
+      [HAK.software_version]: APP_VERSION,
+      [HAK.support_url]: "https://github.com/tanishqmanuja/espnow2mqtt",
     });
   }
 
   async discoverRSSI(): Promise<void> {
     const payload = {
-      dev: this.buildDeviceInfo(),
-      o: this.buildDeviceOrigin(),
+      [HAK.device]: this.buildDeviceInfo(),
+      [HAK.origin]: this.buildDeviceOrigin(),
       ...this.buildRSSIEntityConfig(),
     };
 
