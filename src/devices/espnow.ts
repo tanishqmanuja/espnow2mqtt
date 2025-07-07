@@ -3,7 +3,7 @@ import { titleCase } from "scule";
 import { APP_VERSION } from "@/constants";
 import { GATEWAY_DEVICE_ID } from "@/devices/gateway";
 import type { Entity } from "@/entities/base";
-import { HAK } from "@/entities/keys";
+import { ENK, HAK, NowPacketType } from "@/entities/keyvals";
 import {
   getDiscoveryTopic,
   getEntityTopic,
@@ -118,7 +118,10 @@ export class EspNowDevice {
 
   requestEntityDiscovery(entityId: string): void {
     const payload = Buffer.from(
-      JSON.stringify({ typ: "dscvry", id: entityId }),
+      JSON.stringify({
+        [ENK.type]: NowPacketType.discovery,
+        [ENK.id]: entityId,
+      }),
     );
     serial.send("ESPNOW_TX", { mac: this.mac, payload });
     log.debug("Requested discovery for", entityId, "on", this.id);

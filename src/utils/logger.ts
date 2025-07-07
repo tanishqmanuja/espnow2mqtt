@@ -29,6 +29,8 @@ export interface Logger {
   debug: (...a: unknown[]) => void;
 }
 
+let __LOGGER_ENABLED__ = true;
+
 export function createLogger(
   module?: string,
   color: (s: string) => string = s => s,
@@ -44,6 +46,8 @@ export function createLogger(
   } as const;
 
   function out(lvl: Level, ...args: unknown[]) {
+    if (!__LOGGER_ENABLED__) return;
+
     if (lvl === "DEBUG" && !DEBUG_ENABLED) return;
     consoleFn[lvl](level(lvl), ...(tag ? [tag] : []), ...args);
   }
@@ -57,3 +61,11 @@ export function createLogger(
 }
 
 export const logger = createLogger();
+
+export function disableLogger() {
+  __LOGGER_ENABLED__ = false;
+}
+
+export function enableLogger() {
+  __LOGGER_ENABLED__ = true;
+}

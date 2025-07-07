@@ -4,7 +4,7 @@ import type { DecodedPacket } from "@/interfaces/protocols/serial";
 
 import type { EspNowDevice } from "../../devices/espnow";
 import { EntityBase } from "../base";
-import { ENK } from "../keys";
+import { ENK } from "../keyvals";
 import { PLATFORM } from "../platforms";
 
 const BinarySensorPayloadSchema = z.object({

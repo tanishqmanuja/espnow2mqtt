@@ -1,5 +1,6 @@
 import { App } from "./app";
 import { APP_VERSION } from "./constants";
+import { disableLogger } from "./utils/logger";
 
 console.log(`===+++=== ESPNOW2MQTT v${APP_VERSION} ===+++===`, "\n");
 
@@ -10,6 +11,7 @@ async function shutdown(signal: string) {
   if (isStopping) return;
   isStopping = true;
   console.log(`\nReceived ${signal}, shutting down...\n`);
+  disableLogger();
   await app.stop();
   process.exit(0);
 }

@@ -7,7 +7,7 @@ import { sleep } from "@/utils/timers";
 
 import type { EspNowDevice } from "../devices/espnow";
 import { HA_DISCOVERY_COOLDOWN_MS } from "./constants";
-import { HAK } from "./keys";
+import { HAK } from "./keyvals";
 import { COMMAND_CAPABLE_PLATFORMS } from "./platforms";
 import { getDiscoveryTopic, getEntityTopic, getUniqueId } from "./utils";
 

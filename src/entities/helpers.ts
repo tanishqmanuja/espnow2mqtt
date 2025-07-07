@@ -2,6 +2,7 @@ import { getInterfaces } from "@/interfaces";
 
 import type { EspNowDevice } from "../devices/espnow";
 import { entityLogger, type Entity } from "./base";
+import { ENK, NowPacketType } from "./keyvals";
 
 const { serial } = getInterfaces();
 const log = entityLogger;
@@ -42,7 +43,10 @@ export function ensureEntityThen(
     pendingReq.add(key);
 
     log.debug("Requesting auto discovery for", entityId, "on", mac);
-    const payloadStr = JSON.stringify({ typ: "dscvry", id: entityId });
+    const payloadStr = JSON.stringify({
+      [ENK.type]: NowPacketType.discovery,
+      [ENK.id]: entityId,
+    });
     serial.send("ESPNOW_TX", {
       mac,
       payload: Buffer.from(payloadStr),

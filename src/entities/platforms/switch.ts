@@ -6,7 +6,7 @@ import type { DecodedPacket } from "@/interfaces/protocols/serial";
 import type { EspNowDevice } from "../../devices/espnow";
 import { EntityBase } from "../base";
 import type { CommandProcessor, PacketProcessor } from "../capabilities";
-import { ENK } from "../keys";
+import { ENK } from "../keyvals";
 import { PLATFORM } from "../platforms";
 
 const { serial } = getInterfaces();

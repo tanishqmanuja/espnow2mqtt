@@ -17,6 +17,7 @@ import {
 
 import { isCommandProcessor, isPacketProcessor } from "./entities/capabilities";
 import { createDevice, createEntity } from "./entities/factory";
+import { ENK, NowPacketType } from "./entities/keyvals";
 import { isSupportedPlatform } from "./entities/platforms";
 import { mlog } from "./interfaces/mqtt";
 import { slog } from "./interfaces/serial";
@@ -121,11 +122,21 @@ export class App {
     if (pkt.type !== "ESPNOW_RX") return;
 
     // --- Discovery packet ----------------------------------
-    if (pkt.payload?.typ === "dscvry") return this.processDiscovery(pkt);
+    if (pkt.payload?.[ENK.type] === NowPacketType.discovery)
+      return this.processDiscovery(pkt);
 
     // --- Regular device packet -----------------------------
-    if ("dev_id" in pkt.payload && "id" in pkt.payload)
+    if (pkt.payload?.[ENK.type] === NowPacketType.state)
       return this.processDeviceData(pkt);
+
+    // --- Hybrid packet -------------------------------------
+    if (pkt.payload?.[ENK.type] === NowPacketType.hybrid) {
+      if (!devicemap.get(pkt.payload.dev_id)?.entities.has(pkt.payload.id)) {
+        this.processDiscovery(pkt);
+      }
+      this.processDeviceData(pkt);
+      return;
+    }
   };
 
   private processDiscovery(pkt: any): void {
