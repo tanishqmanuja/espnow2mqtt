@@ -1,5 +1,6 @@
 /* Home Assistant keys */
 export const HAK = {
+  brightness: "brightness",
   command_topic: "cmd_t",
   device: "dev",
   device_class: "dev_cla",
@@ -13,6 +14,8 @@ export const HAK = {
   state_topic: "stat_t",
   unique_id: "uniq_id",
   unit_of_measurement: "unit_of_meas",
+  supported_color_modes: "sup_clrm",
+  schema: "schema",
 
   // device
   configuration_url: "cu",
@@ -37,6 +40,7 @@ export const ENK = {
   platform: "p",
   state: "stat",
   type: ".t",
+  brightness: "br",
 } as const;
 
 export const NowPacketType = {

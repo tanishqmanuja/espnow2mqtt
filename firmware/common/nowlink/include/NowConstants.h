@@ -7,6 +7,8 @@ namespace NowConstants {
     constexpr const char* PLATFORM    = "p";
     constexpr const char* DEVICE_ID   = "dev_id";
     constexpr const char* STATE       = "stat";
+    constexpr const char* BRIGHTNESS  = "br";
+    constexpr const char* SUPPORTED_COLOR_MODES  = "sup_clrm";
   }
 
   namespace Types {

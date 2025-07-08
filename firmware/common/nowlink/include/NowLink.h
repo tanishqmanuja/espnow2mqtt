@@ -21,9 +21,6 @@ namespace NowLink {
 #include "NowEntity.h"
 #include "NowConstants.h"
 
-#include "./platforms/BinarySensor.h"
-#include "./platforms/Switch.h"
-
 namespace {
   namespace K = NowConstants::Keys;
   namespace T = NowConstants::Types;

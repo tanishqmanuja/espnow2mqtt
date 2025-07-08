@@ -2,26 +2,22 @@
 #include <ArduinoJson.h>
 #include <functional>
 
-#include <NowEntity.h>
-#include <NowConstants.h>
-
-class NowEntity;
-namespace NowLink { void registerEntity(NowEntity*, bool); }
+#include <NowLink.h>
 
 namespace K = NowConstants::Keys;
 namespace T = NowConstants::Types;
 
-class NowSwitch : public NowEntity {
+class NowOnOffLight : public NowEntity {
 public:
   using ChangeCallback = std::function<void(bool)>;
 
-  NowSwitch(const char* id, bool init_discovery = false)
+  NowOnOffLight(const char* id, bool init_discovery = false)
       : _id(id) {
     NowLink::registerEntity(this, init_discovery);
   }
 
   const char* id()       const override { return _id; }
-  const char* platform() const override { return "switch"; }
+  const char* platform() const override { return "light"; }
 
   void serializeDiscovery(JsonDocument& doc) const override {
     doc[K::TYPE] = T::DISCOVERY;

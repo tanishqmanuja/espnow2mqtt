@@ -2,11 +2,7 @@
 #include <ArduinoJson.h>
 #include <functional>
 
-#include <NowEntity.h>
-#include <NowConstants.h>
-
-class NowEntity;
-namespace NowLink { void registerEntity(NowEntity*, bool); }
+#include <NowLink.h>
 
 namespace K = NowConstants::Keys;
 namespace T = NowConstants::Types;

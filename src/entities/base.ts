@@ -23,7 +23,7 @@ export type Entity = EntityBase<any>;
  * string `state`. Subclasses provide payload parsing and (optionally)
  * implement processPacket or processMessage via interfaces.
  */
-export abstract class EntityBase<TState extends string> {
+export abstract class EntityBase<TState extends object | string> {
   abstract readonly platform: string;
 
   protected discoveryInFlight?: Promise<void>;
@@ -68,6 +68,15 @@ export abstract class EntityBase<TState extends string> {
     });
   }
 
+  protected get discoveryConfig() {
+    const config: Record<string, unknown> = {
+      [HAK.device]: this.device.buildDeviceInfoShort(),
+      ...this.entityConfig,
+    };
+
+    return config;
+  }
+
   protected get stateTopic(): string {
     return (this.entityConfig[HAK.state_topic] as string).replace(
       "~",
@@ -91,14 +100,9 @@ export abstract class EntityBase<TState extends string> {
     );
 
     this.discoveryInFlight = mqtt
-      .publishAsync(
-        this.discoveryTopic,
-        JSON.stringify({
-          [HAK.device]: this.device.buildDeviceInfoShort(),
-          ...this.entityConfig,
-        }),
-        { qos: 2 },
-      )
+      .publishAsync(this.discoveryTopic, JSON.stringify(this.discoveryConfig), {
+        qos: 2,
+      })
       .then(() => sleep(HA_DISCOVERY_COOLDOWN_MS))
       .finally(() => {
         this.discoveryInFlight = undefined;
@@ -118,6 +122,7 @@ export abstract class EntityBase<TState extends string> {
       return;
     }
 
-    mqtt.publish(this.stateTopic, state, { qos: 1 });
+    const stateStr = typeof state === "string" ? state : JSON.stringify(state);
+    mqtt.publish(this.stateTopic, stateStr, { qos: 1 });
   }
 }

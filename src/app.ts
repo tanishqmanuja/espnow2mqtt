@@ -156,7 +156,7 @@ export class App {
     let entity = device.entities.get(p.id);
     if (!entity) {
       if (isSupportedPlatform(p.p)) {
-        entity = createEntity(p.p, p.id, device);
+        entity = createEntity(p.p, p.id, device, pkt.payload);
         device.entities.set(p.id, entity);
       } else {
         logger.warn("Unsupported platform", p.p);

@@ -2,8 +2,7 @@
 #include <EasyButton.h>
 
 #include <NowLink.h>
-#include <components/BinarySensor.h>
-#include <components/Switch.h>
+#include <components/MonochromaticLight.h>
 
 #include "config.h"
 
@@ -12,8 +11,7 @@
 
 EasyButton button(BUTTON_PIN);
 
-NowBinarySensor btn("flash_button");
-NowSwitch       led("led_switch");
+NowMonochromaticLight lamp("desk_lamp");
 
 bool sendCb(const uint8_t* data, size_t len){
   return quickEspNow.send(GW, data, len) == 0; 
@@ -35,21 +33,18 @@ void setup(){
   Now.begin(DEVICE_ID);
   Now.onSend(sendCb);
   
-  led.onChange = [](bool s){ digitalWrite(LED_PIN, !s); };
+  lamp.onChange = [](bool s, u8_t br){
+    if (s){
+      analogWrite(LED_BUILTIN, 255 - br);
+    } else {
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+  };
 
   button.begin();
-  button.onPressed([](){ led.setState(!led.state()); });
+  button.onPressed([](){ lamp.setOn(!lamp.isOn()); });
 }  
 void loop (){
   button.read();
-
-  if(!btn.state() && button.pressedFor(5)){
-    btn.setState(true);
-  }
-  
-  if(btn.state() && button.releasedFor(10)){
-    btn.setState(false);
-  }
-
   Now.loop();
 }

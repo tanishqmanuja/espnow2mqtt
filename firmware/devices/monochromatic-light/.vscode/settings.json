@@ -1,0 +1,21 @@
+{
+  "files.associations": {
+    "functional": "cpp"
+  },
+  "git.openRepositoryInParentFolders": "always",
+  "workbench.colorCustomizations": {
+    "commandCenter.border": "#15202b99",
+    "sash.hoverBorder": "#e29062",
+    "statusBar.background": "#da7237",
+    "statusBar.foreground": "#15202b",
+    "statusBarItem.hoverBackground": "#bb5a23",
+    "statusBarItem.remoteBackground": "#da7237",
+    "statusBarItem.remoteForeground": "#15202b",
+    "titleBar.activeBackground": "#da7237",
+    "titleBar.activeForeground": "#15202b",
+    "titleBar.inactiveBackground": "#da723799",
+    "titleBar.inactiveForeground": "#15202b99"
+  },
+  "peacock.color": "#da7237",
+  "peacock.affectActivityBar": false
+}
